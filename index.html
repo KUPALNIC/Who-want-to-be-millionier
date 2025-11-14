@@ -763,6 +763,11 @@
           selectedPlayer = null;
         }
         lobbyRef.set(data);
+        
+        // Если удалили текущего пользователя - выйти на начальный экран
+        if (currentUser === playerName) {
+          showLoginScreen();
+        }
       });
     }
 

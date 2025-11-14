@@ -239,6 +239,11 @@
       background: rgba(40, 167, 69, 0.2);
     }
 
+    .player-item.selected {
+      background: rgba(0, 123, 255, 0.3);
+      border: 2px solid #007bff;
+    }
+
     .editor-screen {
       padding: 20px;
     }
@@ -308,6 +313,10 @@
       font-size: 48px;
       color: #dc3545;
       margin-bottom: 20px;
+    }
+
+    .return-btn {
+      display: none;
     }
   </style>
 </head>
@@ -390,6 +399,11 @@
     <div id="editorScreen" class="screen editor-screen">
       <h2>Редактор вопросов</h2>
       <div class="questions-editor" id="questionsEditor"></div>
+      <div class="form-group">
+        <label>Добавить вопросы из текста:</label>
+        <textarea id="questionsText" rows="10" placeholder="Введите вопросы в формате:&#10;Вопрос?&#10;1) вариант 1&#10;2) вариант 2&#10;3) вариант 3 +&#10;4) вариант 4"></textarea>
+        <button class="btn" onclick="addQuestionsFromText()">Добавить вопросы</button>
+      </div>
       <button class="btn" onclick="saveQuestions()">Сохранить</button>
       <button class="btn btn-secondary" onclick="showHostLobby()">Назад</button>
       <button class="btn btn-secondary" onclick="logout()">Выйти</button>
@@ -450,7 +464,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
   <script>
     // ЗАМЕНИТЕ ЭТИ ДАННЫЕ НА ВАШИ ИЗ FIREBASE
-   const firebaseConfig = {
+    const firebaseConfig = {
   apiKey: "AIzaSyB8hVMFnISxDy3Usn7y0QzEtFTjuzcHaBo",
   authDomain: "millioniergame.firebaseapp.com",
   databaseURL: "https://millioniergame-default-rtdb.europe-west1.firebasedatabase.app",
@@ -475,6 +489,7 @@
     let players = [];
     let readyPlayers = [];
     let gameStarted = false;
+    let selectedPlayer = null; // Игрок, с которым играет ведущий
 
     // Вопросы по умолчанию
     const defaultQuestions = [
@@ -532,6 +547,13 @@
       
       // Синхронизация с Firebase
       syncWithFirebase();
+      
+      // Обработка ухода со страницы
+      window.addEventListener('beforeunload', function() {
+        if (currentUser) {
+          removePlayerFromFirebase();
+        }
+      });
     }
 
     // Синхронизация с Firebase
@@ -544,11 +566,25 @@
           readyPlayers = data.readyPlayers || [];
           currentGameQuestions = data.questions || defaultQuestions;
           gameStarted = data.gameStarted || false;
+          selectedPlayer = data.selectedPlayer || null;
           
           updatePlayerLobby();
           updateHostLobby();
         }
       });
+    }
+
+    // Удалить игрока из Firebase при уходе
+    function removePlayerFromFirebase() {
+      if (currentUser && currentRole === 'player') {
+        const lobbyRef = database.ref('lobby');
+        lobbyRef.once('value').then((snapshot) => {
+          const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false };
+          data.players = data.players.filter(p => p.name !== currentUser);
+          data.readyPlayers = data.readyPlayers.filter(name => name !== currentUser);
+          lobbyRef.set(data);
+        });
+      }
     }
 
     // Показать экран входа
@@ -561,6 +597,14 @@
       document.getElementById('editorScreen').classList.remove('active');
       document.getElementById('gameScreen').classList.remove('active');
       document.getElementById('defeatScreen').classList.remove('active');
+      
+      // Очистить сохранённые данные
+      localStorage.removeItem('currentUser');
+      localStorage.removeItem('currentRole');
+      
+      // Сбросить локальные переменные
+      currentUser = null;
+      currentRole = null;
     }
 
     // Показать экран входа игрока
@@ -603,12 +647,12 @@
         
         // Добавить игрока в Firebase
         const lobbyRef = database.ref('lobby');
-        lobbyRef.transaction((data) => {
-          if (!data) data = { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false };
+        lobbyRef.once('value').then((snapshot) => {
+          const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null };
           if (!data.players.some(p => p.name === name)) {
             data.players.push({ name: name, ready: false });
+            lobbyRef.set(data);
           }
-          return data;
         });
         
         document.getElementById('playerLoginScreen').classList.remove('active');
@@ -622,22 +666,22 @@
     function setPlayerReady() {
       if (currentUser && currentRole === 'player') {
         const lobbyRef = database.ref('lobby');
-        lobbyRef.transaction((data) => {
-          if (data) {
-            const player = data.players.find(p => p.name === currentUser);
-            if (player && !player.ready) {
-              player.ready = true;
-              if (!data.readyPlayers.includes(currentUser)) {
-                data.readyPlayers.push(currentUser);
-              }
-              
-              // Обновить кнопки
-              document.getElementById('readyBtn').style.display = 'none';
-              document.getElementById('cancelBtn').style.display = 'inline-block';
-              document.getElementById('readyBtn').classList.remove('btn-ready');
+        lobbyRef.once('value').then((snapshot) => {
+          const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null };
+          const player = data.players.find(p => p.name === currentUser);
+          if (player && !player.ready) {
+            player.ready = true;
+            if (!data.readyPlayers.includes(currentUser)) {
+              data.readyPlayers.push(currentUser);
             }
+            
+            // Обновить кнопки
+            document.getElementById('readyBtn').style.display = 'none';
+            document.getElementById('cancelBtn').style.display = 'inline-block';
+            document.getElementById('readyBtn').classList.remove('btn-ready');
+            
+            lobbyRef.set(data);
           }
-          return data;
         });
       }
     }
@@ -646,20 +690,20 @@
     function cancelReady() {
       if (currentUser && currentRole === 'player') {
         const lobbyRef = database.ref('lobby');
-        lobbyRef.transaction((data) => {
-          if (data) {
-            const player = data.players.find(p => p.name === currentUser);
-            if (player && player.ready) {
-              player.ready = false;
-              data.readyPlayers = data.readyPlayers.filter(name => name !== currentUser);
-              
-              // Обновить кнопки
-              document.getElementById('readyBtn').style.display = 'inline-block';
-              document.getElementById('cancelBtn').style.display = 'none';
-              document.getElementById('readyBtn').classList.add('btn-ready');
-            }
+        lobbyRef.once('value').then((snapshot) => {
+          const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null };
+          const player = data.players.find(p => p.name === currentUser);
+          if (player && player.ready) {
+            player.ready = false;
+            data.readyPlayers = data.readyPlayers.filter(name => name !== currentUser);
+            
+            // Обновить кнопки
+            document.getElementById('readyBtn').style.display = 'inline-block';
+            document.getElementById('cancelBtn').style.display = 'none';
+            document.getElementById('readyBtn').classList.add('btn-ready');
+            
+            lobbyRef.set(data);
           }
-          return data;
         });
       }
     }
@@ -692,18 +736,43 @@
         if (player.ready) {
           div.classList.add('ready');
         }
+        if (player.name === selectedPlayer) {
+          div.classList.add('selected');
+        }
         div.innerHTML = `
           <span>${player.name}</span>
           <span>${player.ready ? '✓ Готов' : 'Не готов'}</span>
+          <button class="btn" onclick="selectPlayer('${player.name}')">${selectedPlayer === player.name ? 'Отменить' : 'Выбрать'}</button>
         `;
         list.appendChild(div);
       });
     }
 
+    // Выбрать игрока для игры
+    function selectPlayer(playerName) {
+      if (selectedPlayer === playerName) {
+        selectedPlayer = null;
+      } else {
+        selectedPlayer = playerName;
+      }
+      
+      const lobbyRef = database.ref('lobby');
+      lobbyRef.once('value').then((snapshot) => {
+        const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false };
+        data.selectedPlayer = selectedPlayer;
+        lobbyRef.set(data);
+      });
+    }
+
     // Начать игру
     function startGame() {
-      if (readyPlayers.length === 0) {
-        alert('Нет готовых игроков!');
+      if (!selectedPlayer) {
+        alert('Выберите игрока для игры!');
+        return;
+      }
+      
+      if (!readyPlayers.includes(selectedPlayer)) {
+        alert('Выбранный игрок не готов!');
         return;
       }
       
@@ -894,6 +963,7 @@
     function showEditor() {
       document.getElementById('hostLobbyScreen').classList.remove('active');
       document.getElementById('editorScreen').classList.add('active');
+      renderQuestionsEditor();
     }
 
     // Показать лобби ведущего
@@ -937,43 +1007,97 @@
     // Обновить вопрос
     function updateQuestion(index, value, type, optionIndex = null) {
       const lobbyRef = database.ref('lobby');
-      lobbyRef.transaction((data) => {
-        if (data && data.questions) {
-          if (type === 'question') {
-            data.questions[index].question = value;
-          } else if (type === 'option') {
-            data.questions[index].options[optionIndex] = value;
-          } else if (type === 'correct') {
-            data.questions[index].correct = parseInt(value);
-          }
+      lobbyRef.once('value').then((snapshot) => {
+        const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null };
+        if (type === 'question') {
+          data.questions[index].question = value;
+        } else if (type === 'option') {
+          data.questions[index].options[optionIndex] = value;
+        } else if (type === 'correct') {
+          data.questions[index].correct = parseInt(value);
         }
-        return data;
+        lobbyRef.set(data);
       });
     }
 
     // Добавить вопрос
     function addQuestion() {
       const lobbyRef = database.ref('lobby');
-      lobbyRef.transaction((data) => {
-        if (data && data.questions) {
-          data.questions.push({
-            question: "Новый вопрос",
-            options: ["Вариант 1", "Вариант 2", "Вариант 3", "Вариант 4"],
-            correct: 0
-          });
+      lobbyRef.once('value').then((snapshot) => {
+        const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null };
+        data.questions.push({
+          question: "Новый вопрос",
+          options: ["Вариант 1", "Вариант 2", "Вариант 3", "Вариант 4"],
+          correct: 0
+        });
+        lobbyRef.set(data);
+      });
+    }
+
+    // Добавить вопросы из текста
+    function addQuestionsFromText() {
+      const text = document.getElementById('questionsText').value;
+      if (!text.trim()) return;
+      
+      const lines = text.split('\n').filter(line => line.trim());
+      const newQuestions = [];
+      let currentQuestion = null;
+      let currentOptions = [];
+      let correctIndex = -1;
+      
+      for (let line of lines) {
+        line = line.trim();
+        if (line.endsWith('?')) {
+          // Новый вопрос
+          if (currentQuestion) {
+            newQuestions.push({
+              question: currentQuestion,
+              options: currentOptions,
+              correct: correctIndex
+            });
+          }
+          currentQuestion = line.slice(0, -1);
+          currentOptions = [];
+          correctIndex = -1;
+        } else if (line.startsWith('1)') || line.startsWith('2)') || line.startsWith('3)') || line.startsWith('4)')) {
+          // Вариант ответа
+          const option = line.substring(3).trim();
+          if (option.endsWith('+')) {
+            correctIndex = currentOptions.length;
+            currentOptions.push(option.slice(0, -1));
+          } else {
+            currentOptions.push(option);
+          }
         }
-        return data;
+      }
+      
+      // Добавить последний вопрос
+      if (currentQuestion) {
+        newQuestions.push({
+          question: currentQuestion,
+          options: currentOptions,
+          correct: correctIndex
+        });
+      }
+      
+      const lobbyRef = database.ref('lobby');
+      lobbyRef.once('value').then((snapshot) => {
+        const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null };
+        data.questions = data.questions.concat(newQuestions);
+        lobbyRef.set(data);
+        alert(`Добавлено ${newQuestions.length} вопросов!`);
+        document.getElementById('questionsText').value = '';
+        renderQuestionsEditor();
       });
     }
 
     // Удалить вопрос
     function deleteQuestion(index) {
       const lobbyRef = database.ref('lobby');
-      lobbyRef.transaction((data) => {
-        if (data && data.questions) {
-          data.questions.splice(index, 1);
-        }
-        return data;
+      lobbyRef.once('value').then((snapshot) => {
+        const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null };
+        data.questions.splice(index, 1);
+        lobbyRef.set(data);
       });
     }
 
@@ -992,6 +1116,11 @@
       // Сбросить локальные переменные
       currentUser = null;
       currentRole = null;
+      
+      // Удалить игрока из Firebase
+      if (currentRole === 'player') {
+        removePlayerFromFirebase();
+      }
       
       // Вернуться на начальный экран
       showLoginScreen();

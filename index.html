@@ -464,7 +464,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
   <script>
     // ЗАМЕНИТЕ ЭТИ ДАННЫЕ НА ВАШИ ИЗ FIREBASE
-    const firebaseConfig = {
+   const firebaseConfig = {
   apiKey: "AIzaSyB8hVMFnISxDy3Usn7y0QzEtFTjuzcHaBo",
   authDomain: "millioniergame.firebaseapp.com",
   databaseURL: "https://millioniergame-default-rtdb.europe-west1.firebasedatabase.app",
@@ -579,7 +579,7 @@
       if (currentUser && currentRole === 'player') {
         const lobbyRef = database.ref('lobby');
         lobbyRef.once('value').then((snapshot) => {
-          const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false };
+          const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null };
           data.players = data.players.filter(p => p.name !== currentUser);
           data.readyPlayers = data.readyPlayers.filter(name => name !== currentUser);
           lobbyRef.set(data);
@@ -742,9 +742,27 @@
         div.innerHTML = `
           <span>${player.name}</span>
           <span>${player.ready ? '✓ Готов' : 'Не готов'}</span>
-          <button class="btn" onclick="selectPlayer('${player.name}')">${selectedPlayer === player.name ? 'Отменить' : 'Выбрать'}</button>
+          <div>
+            <button class="btn" onclick="selectPlayer('${player.name}')">${selectedPlayer === player.name ? 'Отменить' : 'Выбрать'}</button>
+            <button class="btn btn-secondary" onclick="removePlayer('${player.name}')">Удалить</button>
+          </div>
         `;
         list.appendChild(div);
+      });
+    }
+
+    // Удалить игрока
+    function removePlayer(playerName) {
+      const lobbyRef = database.ref('lobby');
+      lobbyRef.once('value').then((snapshot) => {
+        const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null };
+        data.players = data.players.filter(p => p.name !== playerName);
+        data.readyPlayers = data.readyPlayers.filter(name => name !== playerName);
+        if (selectedPlayer === playerName) {
+          data.selectedPlayer = null;
+          selectedPlayer = null;
+        }
+        lobbyRef.set(data);
       });
     }
 
@@ -771,7 +789,8 @@
         return;
       }
       
-      if (!readyPlayers.includes(selectedPlayer)) {
+      const selectedPlayerData = players.find(p => p.name === selectedPlayer);
+      if (!selectedPlayerData || !selectedPlayerData.ready) {
         alert('Выбранный игрок не готов!');
         return;
       }

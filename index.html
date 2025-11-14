@@ -365,7 +365,7 @@
     <div id="playerLobbyScreen" class="screen lobby-screen">
       <div class="lobby-header">
         <h2>Лобби игрока</h2>
-        <p>Ожидание готовности ведущего...</p>
+        <p>Ожидание ведущего...</p>
       </div>
       <div class="players-list">
         <h3>Игроки в лобби:</h3>
@@ -715,12 +715,9 @@
       players.forEach(player => {
         const div = document.createElement('div');
         div.className = 'player-item';
-        if (player.ready) {
-          div.classList.add('ready');
-        }
         div.innerHTML = `
           <span>${player.name}</span>
-          <span>${player.ready ? '✓ Готов' : 'Ожидание...'}</span>
+          <span>В лобби</span>
         `;
         list.appendChild(div);
       });
@@ -733,15 +730,11 @@
       players.forEach(player => {
         const div = document.createElement('div');
         div.className = 'player-item';
-        if (player.ready) {
-          div.classList.add('ready');
-        }
         if (player.name === selectedPlayer) {
           div.classList.add('selected');
         }
         div.innerHTML = `
           <span>${player.name}</span>
-          <span>${player.ready ? '✓ Готов' : 'Не готов'}</span>
           <div>
             <button class="btn" onclick="selectPlayer('${player.name}')">${selectedPlayer === player.name ? 'Отменить' : 'Выбрать'}</button>
             <button class="btn btn-secondary" onclick="removePlayer('${player.name}')">Удалить</button>
@@ -791,12 +784,6 @@
     function startGame() {
       if (!selectedPlayer) {
         alert('Выберите игрока для игры!');
-        return;
-      }
-      
-      const selectedPlayerData = players.find(p => p.name === selectedPlayer);
-      if (!selectedPlayerData || !selectedPlayerData.ready) {
-        alert('Выбранный игрок не готов!');
         return;
       }
       

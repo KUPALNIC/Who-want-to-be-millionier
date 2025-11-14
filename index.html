@@ -91,6 +91,14 @@
       background: #5aa0f0;
     }
 
+    .btn-ready {
+      background: #28a745;
+    }
+
+    .btn-ready:hover {
+      background: #218838;
+    }
+
     .game-screen {
       padding: 20px;
     }
@@ -227,6 +235,10 @@
       align-items: center;
     }
 
+    .player-item.ready {
+      background: rgba(40, 167, 69, 0.2);
+    }
+
     .editor-screen {
       padding: 20px;
     }
@@ -354,6 +366,7 @@
         <button class="btn" id="readyBtn" onclick="setPlayerReady()">Готов</button>
         <button class="btn btn-secondary" id="cancelBtn" onclick="cancelReady()" style="display:none;">Отменить готовность</button>
         <button class="btn" id="returnBtn" onclick="returnToLobby()" style="display:none;">Вернуться в лобби</button>
+        <button class="btn btn-secondary" onclick="logout()">Выйти</button>
       </div>
     </div>
 
@@ -369,6 +382,7 @@
       <div class="form-group">
         <button class="btn" onclick="startGame()">Начать игру</button>
         <button class="btn btn-secondary" onclick="showEditor()">Редактор вопросов</button>
+        <button class="btn btn-secondary" onclick="logout()">Выйти</button>
       </div>
     </div>
 
@@ -378,6 +392,7 @@
       <div class="questions-editor" id="questionsEditor"></div>
       <button class="btn" onclick="saveQuestions()">Сохранить</button>
       <button class="btn btn-secondary" onclick="showHostLobby()">Назад</button>
+      <button class="btn btn-secondary" onclick="logout()">Выйти</button>
     </div>
 
     <!-- Игровой экран -->
@@ -418,6 +433,7 @@
     <div id="defeatScreen" class="screen defeat-screen">
       <div class="defeat-message">ПОРАЖЕНИЕ</div>
       <button class="btn" onclick="returnToLobby()">Вернуться в лобби</button>
+      <button class="btn btn-secondary" onclick="logout()">Выйти</button>
     </div>
 
     <!-- Опрос зрителей -->
@@ -434,8 +450,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
   <script>
     // ЗАМЕНИТЕ ЭТИ ДАННЫЕ НА ВАШИ ИЗ FIREBASE
-    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
+   const firebaseConfig = {
   apiKey: "AIzaSyB8hVMFnISxDy3Usn7y0QzEtFTjuzcHaBo",
   authDomain: "millioniergame.firebaseapp.com",
   projectId: "millioniergame",
@@ -444,6 +459,7 @@ const firebaseConfig = {
   appId: "1:348959703618:web:113d7c8076606d988c23db",
   measurementId: "G-SDRXBYJ272"
 };
+
 
     // Инициализация Firebase
     firebase.initializeApp(firebaseConfig);
@@ -617,6 +633,7 @@ const firebaseConfig = {
               // Обновить кнопки
               document.getElementById('readyBtn').style.display = 'none';
               document.getElementById('cancelBtn').style.display = 'inline-block';
+              document.getElementById('readyBtn').classList.remove('btn-ready');
             }
           }
           return data;
@@ -638,6 +655,7 @@ const firebaseConfig = {
               // Обновить кнопки
               document.getElementById('readyBtn').style.display = 'inline-block';
               document.getElementById('cancelBtn').style.display = 'none';
+              document.getElementById('readyBtn').classList.add('btn-ready');
             }
           }
           return data;
@@ -652,6 +670,9 @@ const firebaseConfig = {
       players.forEach(player => {
         const div = document.createElement('div');
         div.className = 'player-item';
+        if (player.ready) {
+          div.classList.add('ready');
+        }
         div.innerHTML = `
           <span>${player.name}</span>
           <span>${player.ready ? '✓ Готов' : 'Ожидание...'}</span>
@@ -667,6 +688,9 @@ const firebaseConfig = {
       players.forEach(player => {
         const div = document.createElement('div');
         div.className = 'player-item';
+        if (player.ready) {
+          div.classList.add('ready');
+        }
         div.innerHTML = `
           <span>${player.name}</span>
           <span>${player.ready ? '✓ Готов' : 'Не готов'}</span>
@@ -956,6 +980,20 @@ const firebaseConfig = {
     function saveQuestions() {
       alert('Вопросы сохранены!');
       renderQuestionsEditor();
+    }
+
+    // Выйти из аккаунта
+    function logout() {
+      // Удалить сохранённые данные
+      localStorage.removeItem('currentUser');
+      localStorage.removeItem('currentRole');
+      
+      // Сбросить локальные переменные
+      currentUser = null;
+      currentRole = null;
+      
+      // Вернуться на начальный экран
+      showLoginScreen();
     }
 
     // Инициализация при загрузке

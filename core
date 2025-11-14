@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Кто хочет стать миллионером?</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Arial', sans-serif;
+    }
+
+    body {
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      color: #fff;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .screen {
+      display: none;
+    }
+
+    .active {
+      display: block;
+    }
+
+    .login-screen {
+      text-align: center;
+      padding: 50px 20px;
+    }
+
+    .login-form {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 30px;
+      border-radius: 15px;
+      backdrop-filter: blur(10px);
+      max-width: 400px;
+      margin: 0 auto;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+    }
+
+    .btn {
+      background: #ff8c00;
+      color: white;
+      border: none;
+      padding: 12px 25px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: bold;
+      transition: all 0.3s;
+      margin: 5px;
+    }
+
+    .btn:hover {
+      background: #ffa500;
+      transform: scale(1.05);
+    }
+
+    .btn-secondary {
+      background: #4a90e2;
+    }
+
+    .btn-secondary:hover {
+      background: #5aa0f0;
+    }
+
+    .game-screen {
+      padding: 20px;
+    }
+
+    .game-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      padding: 15px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+    }
+
+    .money-line {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+
+    .money-item {
+      padding: 8px 15px;
+      margin: 2px 0;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 5px;
+      width: 100%;
+      text-align: right;
+    }
+
+    .money-item.current {
+      background: #ff8c00;
+      font-weight: bold;
+    }
+
+    .question-box {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 30px;
+      border-radius: 15px;
+      margin-bottom: 30px;
+      text-align: center;
+    }
+
+    .question-text {
+      font-size: 24px;
+      margin-bottom: 20px;
+      line-height: 1.4;
+    }
+
+    .options-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+      margin-bottom: 30px;
+    }
+
+    .option-btn {
+      padding: 15px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      font-size: 18px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .option-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: scale(1.02);
+    }
+
+    .option-btn.correct {
+      background: #28a745;
+    }
+
+    .option-btn.incorrect {
+      background: #dc3545;
+    }
+
+    .option-btn.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .help-buttons {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    .help-btn {
+      padding: 10px 15px;
+      background: #6c757d;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .help-btn:hover {
+      background: #7c858e;
+    }
+
+    .help-btn.used {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .lobby-screen {
+      padding: 20px;
+    }
+
+    .lobby-header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .players-list {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+
+    .player-item {
+      padding: 10px;
+      margin: 5px 0;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .editor-screen {
+      padding: 20px;
+    }
+
+    .questions-editor {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 20px;
+      border-radius: 10px;
+    }
+
+    .question-editor {
+      margin-bottom: 20px;
+      padding: 15px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+    }
+
+    .question-editor input {
+      width: 100%;
+      padding: 8px;
+      margin: 5px 0;
+      border: none;
+      border-radius: 5px;
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+    }
+
+    .audience-poll {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.9);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .poll-options {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+      margin-top: 20px;
+    }
+
+    .poll-option {
+      padding: 15px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .poll-option:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .defeat-screen {
+      text-align: center;
+      padding: 50px 20px;
+    }
+
+    .defeat-message {
+      font-size: 48px;
+      color: #dc3545;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Экран входа -->
+    <div id="loginScreen" class="screen active">
+      <div class="login-form">
+        <h2>Кто хочет стать миллионером?</h2>
+        <div class="form-group">
+          <button class="btn btn-secondary" onclick="showPlayerLogin()">Играть как игрок</button>
+        </div>
+        <div class="form-group">
+          <button class="btn" onclick="showHostLogin()">Войти как ведущий</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Экран входа игрока -->
+    <div id="playerLoginScreen" class="screen">
+      <div class="login-form">
+        <h2>Вход как игрок</h2>
+        <div class="form-group">
+          <label>Введите ваше имя:</label>
+          <input type="text" id="playerName" placeholder="Ваше имя">
+        </div>
+        <button class="btn" onclick="joinPlayer()">Присоединиться</button>
+        <button class="btn btn-secondary" onclick="showLoginScreen()">Назад</button>
+      </div>
+    </div>
+
+    <!-- Экран входа ведущего -->
+    <div id="hostLoginScreen" class="screen">
+      <div class="login-form">
+        <h2>Вход как ведущий</h2>
+        <div class="form-group">
+          <label>Пароль:</label>
+          <input type="password" id="hostPassword" placeholder="Введите пароль">
+        </div>
+        <button class="btn" onclick="loginHost()">Войти</button>
+        <button class="btn btn-secondary" onclick="showLoginScreen()">Назад</button>
+      </div>
+    </div>
+
+    <!-- Лобби игрока -->
+    <div id="playerLobbyScreen" class="screen lobby-screen">
+      <div class="lobby-header">
+        <h2>Лобби игрока</h2>
+        <p>Ожидание готовности ведущего...</p>
+      </div>
+      <div class="players-list">
+        <h3>Игроки в лобби:</h3>
+        <div id="playerList"></div>
+      </div>
+      <div id="readySection" style="display:none;">
+        <button class="btn" id="readyBtn" onclick="setPlayerReady()">Готов</button>
+        <button class="btn btn-secondary" id="cancelBtn" onclick="cancelReady()" style="display:none;">Отменить готовность</button>
+        <button class="btn" id="returnBtn" onclick="returnToLobby()" style="display:none;">Вернуться в лобби</button>
+      </div>
+    </div>
+
+    <!-- Лобби ведущего -->
+    <div id="hostLobbyScreen" class="screen lobby-screen">
+      <div class="lobby-header">
+        <h2>Лобби ведущего</h2>
+      </div>
+      <div class="players-list">
+        <h3>Игроки в лобби:</h3>
+        <div id="hostPlayerList"></div>
+      </div>
+      <div class="form-group">
+        <button class="btn" onclick="startGame()">Начать игру</button>
+        <button class="btn btn-secondary" onclick="showEditor()">Редактор вопросов</button>
+      </div>
+    </div>
+
+    <!-- Редактор вопросов -->
+    <div id="editorScreen" class="screen editor-screen">
+      <h2>Редактор вопросов</h2>
+      <div class="questions-editor" id="questionsEditor"></div>
+      <button class="btn" onclick="saveQuestions()">Сохранить</button>
+      <button class="btn btn-secondary" onclick="showHostLobby()">Назад</button>
+    </div>
+
+    <!-- Игровой экран -->
+    <div id="gameScreen" class="screen game-screen">
+      <div class="game-header">
+        <div class="help-buttons">
+          <button class="help-btn" id="help50" onclick="useHelp50()">50/50</button>
+          <button class="help-btn" id="helpCall" onclick="useHelpCall()">Звонок другу</button>
+          <button class="help-btn" id="helpAudience" onclick="useHelpAudience()">Помощь зала</button>
+          <button class="help-btn" id="helpSecond" onclick="useHelpSecond()">Второй шанс</button>
+        </div>
+        <div class="money-line">
+          <div class="money-item">1 000 000 ₽</div>
+          <div class="money-item">500 000 ₽</div>
+          <div class="money-item">250 000 ₽</div>
+          <div class="money-item">125 000 ₽</div>
+          <div class="money-item">64 000 ₽</div>
+          <div class="money-item">32 000 ₽</div>
+          <div class="money-item">16 000 ₽</div>
+          <div class="money-item">8 000 ₽</div>
+          <div class="money-item">4 000 ₽</div>
+          <div class="money-item">2 000 ₽</div>
+          <div class="money-item current">1 000 ₽</div>
+          <div class="money-item">500 ₽</div>
+          <div class="money-item">300 ₽</div>
+          <div class="money-item">200 ₽</div>
+          <div class="money-item">100 ₽</div>
+        </div>
+      </div>
+      
+      <div class="question-box">
+        <div class="question-text" id="questionText">Вопрос загружается...</div>
+        <div class="options-grid" id="optionsGrid"></div>
+      </div>
+    </div>
+
+    <!-- Экран поражения -->
+    <div id="defeatScreen" class="screen defeat-screen">
+      <div class="defeat-message">ПОРАЖЕНИЕ</div>
+      <button class="btn" onclick="returnToLobby()">Вернуться в лобби</button>
+    </div>
+
+    <!-- Опрос зрителей -->
+    <div id="audiencePoll" class="audience-poll" style="display:none;">
+      <h2>Помощь зала</h2>
+      <p>Выберите ваш вариант ответа:</p>
+      <div class="poll-options" id="pollOptions"></div>
+      <div id="pollTimer">60</div>
+    </div>
+  </div>
+
+  <script>
+    // Данные игры
+    let currentUser = null;
+    let currentRole = null;
+    let currentQuestionIndex = 0;
+    let helpUsed = { 50: false, call: false, audience: false, second: false };
+    let currentGameQuestions = [];
+    let players = [];
+    let readyPlayers = [];
+    let gameStarted = false;
+
+    // Вопросы по умолчанию
+    const defaultQuestions = [
+      {
+        question: "Столица Франции?",
+        options: ["Лондон", "Париж", "Берлин", "Мадрид"],
+        correct: 1
+      },
+      {
+        question: "Сколько планет в Солнечной системе?",
+        options: ["7", "8", "9", "10"],
+        correct: 1
+      },
+      {
+        question: "Кто написал 'Война и мир'?",
+        options: ["Достоевский", "Толстой", "Пушкин", "Гоголь"],
+        correct: 1
+      },
+      {
+        question: "Самая большая планета в Солнечной системе?",
+        options: ["Земля", "Марс", "Юпитер", "Сатурн"],
+        correct: 2
+      },
+      {
+        question: "Сколько дней в високосном году?",
+        options: ["364", "365", "366", "367"],
+        correct: 2
+      }
+    ];
+
+    // Инициализация
+    function init() {
+      currentGameQuestions = JSON.parse(JSON.stringify(defaultQuestions));
+    }
+
+    // Показать экран входа
+    function showLoginScreen() {
+      document.getElementById('loginScreen').classList.add('active');
+      document.getElementById('playerLoginScreen').classList.remove('active');
+      document.getElementById('hostLoginScreen').classList.remove('active');
+      document.getElementById('playerLobbyScreen').classList.remove('active');
+      document.getElementById('hostLobbyScreen').classList.remove('active');
+      document.getElementById('editorScreen').classList.remove('active');
+      document.getElementById('gameScreen').classList.remove('active');
+      document.getElementById('defeatScreen').classList.remove('active');
+    }
+
+    // Показать экран входа игрока
+    function showPlayerLogin() {
+      document.getElementById('loginScreen').classList.remove('active');
+      document.getElementById('playerLoginScreen').classList.add('active');
+    }
+
+    // Показать экран входа ведущего
+    function showHostLogin() {
+      document.getElementById('loginScreen').classList.remove('active');
+      document.getElementById('hostLoginScreen').classList.add('active');
+    }
+
+    // Вход ведущего
+    function loginHost() {
+      const password = document.getElementById('hostPassword').value;
+      if (password === '1488') { // Новый пароль для ведущего
+        currentUser = 'host';
+        currentRole = 'host';
+        document.getElementById('hostLoginScreen').classList.remove('active');
+        document.getElementById('hostLobbyScreen').classList.add('active');
+        updateHostLobby();
+      } else {
+        alert('Неверный пароль!');
+      }
+    }
+
+    // Присоединение игрока
+    function joinPlayer() {
+      const name = document.getElementById('playerName').value;
+      if (name.trim()) {
+        currentUser = name;
+        currentRole = 'player';
+        players.push({ name: name, ready: false });
+        document.getElementById('playerLoginScreen').classList.remove('active');
+        document.getElementById('playerLobbyScreen').classList.add('active');
+        document.getElementById('readySection').style.display = 'block';
+        updatePlayerLobby();
+      }
+    }
+
+    // Установить готовность игрока
+    function setPlayerReady() {
+      const player = players.find(p => p.name === currentUser);
+      if (player && !player.ready) {
+        player.ready = true;
+        readyPlayers.push(currentUser);
+        document.getElementById('readyBtn').style.display = 'none';
+        document.getElementById('cancelBtn').style.display = 'inline-block';
+        updatePlayerLobby();
+        updateHostLobby();
+      }
+    }
+
+    // Отменить готовность
+    function cancelReady() {
+      const player = players.find(p => p.name === currentUser);
+      if (player && player.ready) {
+        player.ready = false;
+        readyPlayers = readyPlayers.filter(name => name !== currentUser);
+        document.getElementById('readyBtn').style.display = 'inline-block';
+        document.getElementById('cancelBtn').style.display = 'none';
+        updatePlayerLobby();
+        updateHostLobby();
+      }
+    }
+
+    // Обновить лобби игрока
+    function updatePlayerLobby() {
+      const list = document.getElementById('playerList');
+      list.innerHTML = '';
+      players.forEach(player => {
+        const div = document.createElement('div');
+        div.className = 'player-item';
+        div.innerHTML = `
+          <span>${player.name}</span>
+          <span>${player.ready ? '✓ Готов' : 'Ожидание...'}</span>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    // Обновить лобби ведущего
+    function updateHostLobby() {
+      const list = document.getElementById('hostPlayerList');
+      list.innerHTML = '';
+      players.forEach(player => {
+        const div = document.createElement('div');
+        div.className = 'player-item';
+        div.innerHTML = `
+          <span>${player.name}</span>
+          <span>${player.ready ? '✓ Готов' : 'Не готов'}</span>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    // Начать игру
+    function startGame() {
+      if (readyPlayers.length === 0) {
+        alert('Нет готовых игроков!');
+        return;
+      }
+      gameStarted = true;
+      document.getElementById('hostLobbyScreen').classList.remove('active');
+      document.getElementById('gameScreen').classList.add('active');
+      loadQuestion(0);
+    }
+
+    // Загрузить вопрос
+    function loadQuestion(index) {
+      if (index >= currentGameQuestions.length) {
+        alert('Поздравляем! Вы выиграли 1 000 000 ₽!');
+        return;
+      }
+      
+      currentQuestionIndex = index;
+      const question = currentGameQuestions[index];
+      document.getElementById('questionText').textContent = question.question;
+      
+      const optionsGrid = document.getElementById('optionsGrid');
+      optionsGrid.innerHTML = '';
+      
+      question.options.forEach((option, i) => {
+        const button = document.createElement('button');
+        button.className = 'option-btn';
+        button.textContent = option;
+        button.onclick = () => selectAnswer(i);
+        optionsGrid.appendChild(button);
+      });
+
+      // Обновить индикатор денег
+      const moneyItems = document.querySelectorAll('.money-item');
+      moneyItems.forEach((item, i) => {
+        item.classList.remove('current');
+        if (i === currentQuestionIndex) {
+          item.classList.add('current');
+        }
+      });
+
+      // Сбросить состояния кнопок подсказок
+      resetHelpButtons();
+    }
+
+    // Выбор ответа
+    function selectAnswer(selectedIndex) {
+      const question = currentGameQuestions[currentQuestionIndex];
+      const options = document.querySelectorAll('.option-btn');
+      
+      if (selectedIndex === question.correct) {
+        // Правильный ответ
+        options[selectedIndex].classList.add('correct');
+        setTimeout(() => {
+          loadQuestion(currentQuestionIndex + 1);
+        }, 1500);
+      } else {
+        // Неправильный ответ
+        options[selectedIndex].classList.add('incorrect');
+        options[question.correct].classList.add('correct');
+        
+        setTimeout(() => {
+          document.getElementById('gameScreen').classList.remove('active');
+          document.getElementById('defeatScreen').classList.add('active');
+        }, 2000);
+      }
+    }
+
+    // Использовать подсказку 50/50
+    function useHelp50() {
+      if (helpUsed['50']) return;
+      
+      helpUsed['50'] = true;
+      document.getElementById('help50').classList.add('used');
+      
+      const question = currentGameQuestions[currentQuestionIndex];
+      const options = document.querySelectorAll('.option-btn');
+      
+      // Оставить правильный и один неправильный
+      const incorrectOptions = [];
+      options.forEach((option, i) => {
+        if (i !== question.correct) {
+          incorrectOptions.push(i);
+        }
+      });
+      
+      // Скрыть два неправильных
+      const toHide = incorrectOptions.slice(0, 2);
+      toHide.forEach(index => {
+        options[index].classList.add('disabled');
+        options[index].disabled = true;
+      });
+    }
+
+    // Использовать "Звонок другу"
+    function useHelpCall() {
+      if (helpUsed['call']) return;
+      
+      helpUsed['call'] = true;
+      document.getElementById('helpCall').classList.add('used');
+      
+      const question = currentGameQuestions[currentQuestionIndex];
+      const correctOption = question.options[question.correct];
+      alert(`Ваш друг думает... Я думаю, правильный ответ: "${correctOption}"`);
+    }
+
+    // Использовать "Помощь зала"
+    function useHelpAudience() {
+      if (helpUsed['audience']) return;
+      
+      helpUsed['audience'] = true;
+      document.getElementById('helpAudience').classList.add('used');
+      
+      showAudiencePoll();
+    }
+
+    // Показать опрос зрителей
+    function showAudiencePoll() {
+      const question = currentGameQuestions[currentQuestionIndex];
+      const poll = document.getElementById('audiencePoll');
+      const optionsContainer = document.getElementById('pollOptions');
+      
+      optionsContainer.innerHTML = '';
+      question.options.forEach((option, i) => {
+        const div = document.createElement('div');
+        div.className = 'poll-option';
+        div.textContent = option;
+        div.onclick = () => {
+          poll.style.display = 'none';
+          document.body.style.overflow = 'auto';
+        };
+        optionsContainer.appendChild(div);
+      });
+      
+      poll.style.display = 'flex';
+      document.body.style.overflow = 'hidden';
+      
+      // Таймер 60 секунд
+      let timeLeft = 60;
+      const timerElement = document.getElementById('pollTimer');
+      timerElement.textContent = timeLeft;
+      
+      const timer = setInterval(() => {
+        timeLeft--;
+        timerElement.textContent = timeLeft;
+        if (timeLeft <= 0) {
+          clearInterval(timer);
+          poll.style.display = 'none';
+          document.body.style.overflow = 'auto';
+        }
+      }, 1000);
+    }
+
+    // Использовать второй шанс
+    function useHelpSecond() {
+      if (helpUsed['second']) return;
+      
+      helpUsed['second'] = true;
+      document.getElementById('helpSecond').classList.add('used');
+      
+      alert('Второй шанс активирован! Если вы ошибётесь, игра не закончится.');
+      // Реализация: при неправильном ответе не заканчивать игру
+    }
+
+    // Сбросить кнопки подсказок
+    function resetHelpButtons() {
+      document.getElementById('help50').classList.remove('used');
+      document.getElementById('helpCall').classList.remove('used');
+      document.getElementById('helpAudience').classList.remove('used');
+      document.getElementById('helpSecond').classList.remove('used');
+      helpUsed = { 50: false, call: false, audience: false, second: false };
+    }
+
+    // Вернуться в лобби
+    function returnToLobby() {
+      document.getElementById('defeatScreen').classList.remove('active');
+      document.getElementById('gameScreen').classList.remove('active');
+      document.getElementById('playerLobbyScreen').classList.add('active');
+      document.getElementById('returnBtn').style.display = 'none';
+      
+      // Сбросить готовность при возвращении в лобби
+      cancelReady();
+    }
+
+    // Показать редактор
+    function showEditor() {
+      document.getElementById('hostLobbyScreen').classList.remove('active');
+      document.getElementById('editorScreen').classList.add('active');
+    }
+
+    // Показать лобби ведущего
+    function showHostLobby() {
+      document.getElementById('editorScreen').classList.remove('active');
+      document.getElementById('hostLobbyScreen').classList.add('active');
+    }
+
+    // Рендер редактора вопросов
+    function renderQuestionsEditor() {
+      const container = document.getElementById('questionsEditor');
+      container.innerHTML = '';
+      
+      currentGameQuestions.forEach((q, index) => {
+        const div = document.createElement('div');
+        div.className = 'question-editor';
+        div.innerHTML = `
+          <input type="text" value="${q.question}" placeholder="Текст вопроса" onchange="updateQuestion(${index}, this.value, 'question')">
+          <input type="text" value="${q.options[0]}" placeholder="Вариант 1" onchange="updateQuestion(${index}, this.value, 'option', 0)">
+          <input type="text" value="${q.options[1]}" placeholder="Вариант 2" onchange="updateQuestion(${index}, this.value, 'option', 1)">
+          <input type="text" value="${q.options[2]}" placeholder="Вариант 3" onchange="updateQuestion(${index}, this.value, 'option', 2)">
+          <input type="text" value="${q.options[3]}" placeholder="Вариант 4" onchange="updateQuestion(${index}, this.value, 'option', 3)">
+          <select onchange="updateQuestion(${index}, this.value, 'correct')">
+            <option value="0" ${q.correct === 0 ? 'selected' : ''}>Вариант 1</option>
+            <option value="1" ${q.correct === 1 ? 'selected' : ''}>Вариант 2</option>
+            <option value="2" ${q.correct === 2 ? 'selected' : ''}>Вариант 3</option>
+            <option value="3" ${q.correct === 3 ? 'selected' : ''}>Вариант 4</option>
+          </select>
+          <button class="btn" onclick="deleteQuestion(${index})">Удалить</button>
+        `;
+        container.appendChild(div);
+      });
+      
+      const addButton = document.createElement('button');
+      addButton.className = 'btn';
+      addButton.textContent = 'Добавить вопрос';
+      addButton.onclick = addQuestion;
+      container.appendChild(addButton);
+    }
+
+    // Обновить вопрос
+    function updateQuestion(index, value, type, optionIndex = null) {
+      if (type === 'question') {
+        currentGameQuestions[index].question = value;
+      } else if (type === 'option') {
+        currentGameQuestions[index].options[optionIndex] = value;
+      } else if (type === 'correct') {
+        currentGameQuestions[index].correct = parseInt(value);
+      }
+    }
+
+    // Добавить вопрос
+    function addQuestion() {
+      currentGameQuestions.push({
+        question: "Новый вопрос",
+        options: ["Вариант 1", "Вариант 2", "Вариант 3", "Вариант 4"],
+        correct: 0
+      });
+      renderQuestionsEditor();
+    }
+
+    // Удалить вопрос
+    function deleteQuestion(index) {
+      currentGameQuestions.splice(index, 1);
+      renderQuestionsEditor();
+    }
+
+    // Сохранить вопросы
+    function saveQuestions() {
+      alert('Вопросы сохранены!');
+      renderQuestionsEditor();
+    }
+
+    // Инициализация при загрузке
+    window.onload = init;
+  </script>
+</body>
+</html>
+

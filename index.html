@@ -429,7 +429,26 @@
     </div>
   </div>
 
+  <!-- Подключение Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
   <script>
+    // ЗАМЕНИТЕ ЭТИ ДАННЫЕ НА ВАШИ ИЗ FIREBASE
+    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyB8hVMFnISxDy3Usn7y0QzEtFTjuzcHaBo",
+  authDomain: "millioniergame.firebaseapp.com",
+  projectId: "millioniergame",
+  storageBucket: "millioniergame.firebasestorage.app",
+  messagingSenderId: "348959703618",
+  appId: "1:348959703618:web:113d7c8076606d988c23db",
+  measurementId: "G-SDRXBYJ272"
+};
+
+    // Инициализация Firebase
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
     // Данные игры
     let currentUser = null;
     let currentRole = null;
@@ -472,6 +491,47 @@
     // Инициализация
     function init() {
       currentGameQuestions = JSON.parse(JSON.stringify(defaultQuestions));
+      
+      // Проверка сохранённого состояния
+      const savedUser = localStorage.getItem('currentUser');
+      const savedRole = localStorage.getItem('currentRole');
+      
+      if (savedUser && savedRole) {
+        currentUser = savedUser;
+        currentRole = savedRole;
+        
+        if (savedRole === 'player') {
+          document.getElementById('loginScreen').classList.remove('active');
+          document.getElementById('playerLobbyScreen').classList.add('active');
+          document.getElementById('readySection').style.display = 'block';
+          document.getElementById('playerName').value = savedUser;
+          updatePlayerLobby();
+        } else if (savedRole === 'host') {
+          document.getElementById('loginScreen').classList.remove('active');
+          document.getElementById('hostLobbyScreen').classList.add('active');
+          updateHostLobby();
+        }
+      }
+      
+      // Синхронизация с Firebase
+      syncWithFirebase();
+    }
+
+    // Синхронизация с Firebase
+    function syncWithFirebase() {
+      const lobbyRef = database.ref('lobby');
+      lobbyRef.on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+          players = data.players || [];
+          readyPlayers = data.readyPlayers || [];
+          currentGameQuestions = data.questions || defaultQuestions;
+          gameStarted = data.gameStarted || false;
+          
+          updatePlayerLobby();
+          updateHostLobby();
+        }
+      });
     }
 
     // Показать экран входа
@@ -501,9 +561,12 @@
     // Вход ведущего
     function loginHost() {
       const password = document.getElementById('hostPassword').value;
-      if (password === '1488') { // Новый пароль для ведущего
+      if (password === '1488') {
         currentUser = 'host';
         currentRole = 'host';
+        localStorage.setItem('currentUser', 'host');
+        localStorage.setItem('currentRole', 'host');
+        
         document.getElementById('hostLoginScreen').classList.remove('active');
         document.getElementById('hostLobbyScreen').classList.add('active');
         updateHostLobby();
@@ -518,7 +581,19 @@
       if (name.trim()) {
         currentUser = name;
         currentRole = 'player';
-        players.push({ name: name, ready: false });
+        localStorage.setItem('currentUser', name);
+        localStorage.setItem('currentRole', 'player');
+        
+        // Добавить игрока в Firebase
+        const lobbyRef = database.ref('lobby');
+        lobbyRef.transaction((data) => {
+          if (!data) data = { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false };
+          if (!data.players.some(p => p.name === name)) {
+            data.players.push({ name: name, ready: false });
+          }
+          return data;
+        });
+        
         document.getElementById('playerLoginScreen').classList.remove('active');
         document.getElementById('playerLobbyScreen').classList.add('active');
         document.getElementById('readySection').style.display = 'block';
@@ -528,27 +603,45 @@
 
     // Установить готовность игрока
     function setPlayerReady() {
-      const player = players.find(p => p.name === currentUser);
-      if (player && !player.ready) {
-        player.ready = true;
-        readyPlayers.push(currentUser);
-        document.getElementById('readyBtn').style.display = 'none';
-        document.getElementById('cancelBtn').style.display = 'inline-block';
-        updatePlayerLobby();
-        updateHostLobby();
+      if (currentUser && currentRole === 'player') {
+        const lobbyRef = database.ref('lobby');
+        lobbyRef.transaction((data) => {
+          if (data) {
+            const player = data.players.find(p => p.name === currentUser);
+            if (player && !player.ready) {
+              player.ready = true;
+              if (!data.readyPlayers.includes(currentUser)) {
+                data.readyPlayers.push(currentUser);
+              }
+              
+              // Обновить кнопки
+              document.getElementById('readyBtn').style.display = 'none';
+              document.getElementById('cancelBtn').style.display = 'inline-block';
+            }
+          }
+          return data;
+        });
       }
     }
 
     // Отменить готовность
     function cancelReady() {
-      const player = players.find(p => p.name === currentUser);
-      if (player && player.ready) {
-        player.ready = false;
-        readyPlayers = readyPlayers.filter(name => name !== currentUser);
-        document.getElementById('readyBtn').style.display = 'inline-block';
-        document.getElementById('cancelBtn').style.display = 'none';
-        updatePlayerLobby();
-        updateHostLobby();
+      if (currentUser && currentRole === 'player') {
+        const lobbyRef = database.ref('lobby');
+        lobbyRef.transaction((data) => {
+          if (data) {
+            const player = data.players.find(p => p.name === currentUser);
+            if (player && player.ready) {
+              player.ready = false;
+              data.readyPlayers = data.readyPlayers.filter(name => name !== currentUser);
+              
+              // Обновить кнопки
+              document.getElementById('readyBtn').style.display = 'inline-block';
+              document.getElementById('cancelBtn').style.display = 'none';
+            }
+          }
+          return data;
+        });
       }
     }
 
@@ -588,7 +681,12 @@
         alert('Нет готовых игроков!');
         return;
       }
-      gameStarted = true;
+      
+      const lobbyRef = database.ref('lobby');
+      lobbyRef.update({
+        gameStarted: true
+      });
+      
       document.getElementById('hostLobbyScreen').classList.remove('active');
       document.getElementById('gameScreen').classList.add('active');
       loadQuestion(0);
@@ -745,7 +843,6 @@
       document.getElementById('helpSecond').classList.add('used');
       
       alert('Второй шанс активирован! Если вы ошибётесь, игра не закончится.');
-      // Реализация: при неправильном ответе не заканчивать игру
     }
 
     // Сбросить кнопки подсказок
@@ -814,29 +911,45 @@
 
     // Обновить вопрос
     function updateQuestion(index, value, type, optionIndex = null) {
-      if (type === 'question') {
-        currentGameQuestions[index].question = value;
-      } else if (type === 'option') {
-        currentGameQuestions[index].options[optionIndex] = value;
-      } else if (type === 'correct') {
-        currentGameQuestions[index].correct = parseInt(value);
-      }
+      const lobbyRef = database.ref('lobby');
+      lobbyRef.transaction((data) => {
+        if (data && data.questions) {
+          if (type === 'question') {
+            data.questions[index].question = value;
+          } else if (type === 'option') {
+            data.questions[index].options[optionIndex] = value;
+          } else if (type === 'correct') {
+            data.questions[index].correct = parseInt(value);
+          }
+        }
+        return data;
+      });
     }
 
     // Добавить вопрос
     function addQuestion() {
-      currentGameQuestions.push({
-        question: "Новый вопрос",
-        options: ["Вариант 1", "Вариант 2", "Вариант 3", "Вариант 4"],
-        correct: 0
+      const lobbyRef = database.ref('lobby');
+      lobbyRef.transaction((data) => {
+        if (data && data.questions) {
+          data.questions.push({
+            question: "Новый вопрос",
+            options: ["Вариант 1", "Вариант 2", "Вариант 3", "Вариант 4"],
+            correct: 0
+          });
+        }
+        return data;
       });
-      renderQuestionsEditor();
     }
 
     // Удалить вопрос
     function deleteQuestion(index) {
-      currentGameQuestions.splice(index, 1);
-      renderQuestionsEditor();
+      const lobbyRef = database.ref('lobby');
+      lobbyRef.transaction((data) => {
+        if (data && data.questions) {
+          data.questions.splice(index, 1);
+        }
+        return data;
+      });
     }
 
     // Сохранить вопросы

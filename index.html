@@ -161,6 +161,13 @@
       justify-content: center;
       margin-bottom: 20px;
     }
+    .host-controls {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .host-controls .btn {
+      margin: 0 5px;
+    }
     .help-btn {
       padding: 10px 15px;
       background: #6c757d;
@@ -175,10 +182,6 @@
     }
     .help-btn.used {
       display: none;
-    }
-    .host-controls {
-      text-align: center;
-      margin-bottom: 20px;
     }
     .lobby-screen {
       padding: 20px;
@@ -302,10 +305,10 @@
         <div id="hostPlayerList"></div>
       </div>
       <div class="form-group">
-    <button class="btn" onclick="startGame()">Начать игру</button>
-    <button class="btn btn-secondary" onclick="showBankEditor()">Управление паками</button>
-    <button class="btn btn-secondary" onclick="logout()">Выйти</button>
-  </div>
+        <button class="btn" onclick="startGame()">Начать игру</button>
+        <button class="btn btn-secondary" onclick="showBankEditor()">Управление паками</button>
+        <button class="btn btn-secondary" onclick="logout()">Выйти</button>
+      </div>
     </div>
     <!-- Игровой экран -->
     <div id="gameScreen" class="screen game-screen">
@@ -315,7 +318,8 @@
         <button class="help-btn" id="helpSecond" onclick="useHelpSecond()">Второй шанс</button>
       </div>
       <div class="host-controls" id="hostControls" style="display:none;">
-        <button class="btn" onclick="revealAnswer()">Показать ответ</button>
+        <button class="btn" onclick="revealAnswer()">Показать ответ игрока</button>
+        <button class="btn btn-secondary" onclick="showCorrectAnswer()">Показать правильный ответ</button>
       </div>
       <div class="question-box">
         <div class="question-text" id="questionText">Вопрос загружается...</div>
@@ -355,35 +359,29 @@
     <!-- Редактор паков -->
     <div id="bankEditorScreen" class="screen editor-screen">
       <h2>Управление паками вопросов</h2>
-
       <div class="form-group">
         <label>Название нового пака:</label>
         <input type="text" id="newPackName" placeholder="Например: вопросы для Данона">
         <button class="btn" onclick="createNewPack()">Создать пак</button>
       </div>
-
       <div class="form-group">
         <label>Выберите пак для редактирования:</label>
         <select id="packSelector" onchange="loadPackContent(this.value)">
           <option value="">— Выберите пак —</option>
         </select>
       </div>
-
       <div class="form-group">
         <label>Вопросы в паке (редактируйте здесь):</label>
         <textarea id="packContent" rows="15" placeholder="Здесь будет содержимое выбранного пака..."></textarea>
       </div>
-
       <div class="form-group">
         <label>Или добавьте вопросы из текста:</label>
         <textarea id="questionsText" rows="10" placeholder="Формат:&#10;1. Вопрос?&#10;А) вариант 1&#10;Б) вариант 2 +&#10;В) вариант 3&#10;Г) вариант 4"></textarea>
         <button class="btn" onclick="addQuestionsToSelectedPack()">Добавить в выбранный пак</button>
       </div>
-
       <div class="form-group">
         <button class="btn" onclick="savePackContent()">Сохранить изменения в паке</button>
       </div>
-
       <button class="btn btn-secondary" onclick="showHostLobby()">Назад</button>
     </div>
   </div>
@@ -392,18 +390,16 @@
   <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
   <script>
-    // 🔑 ЗАМЕНИ НА СВОИ ДАННЫЕ
     const firebaseConfig = {
-  apiKey: "AIzaSyB8hVMFnISxDy3Usn7y0QzEtFTjuzcHaBo",
-  authDomain: "millioniergame.firebaseapp.com",
-  databaseURL: "https://millioniergame-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "millioniergame",
-  storageBucket: "millioniergame.firebasestorage.app",
-  messagingSenderId: "348959703618",
-  appId: "1:348959703618:web:113d7c8076606d988c23db",
-  measurementId: "G-SDRXBYJ272"
-};
-
+      apiKey: "AIzaSyB8hVMFnISxDy3Usn7y0QzEtFTjuzcHaBo",
+      authDomain: "millioniergame.firebaseapp.com",
+      databaseURL: "https://millioniergame-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "millioniergame",
+      storageBucket: "millioniergame.firebasestorage.app",
+      messagingSenderId: "348959703618",
+      appId: "1:348959703618:web:113d7c8076606d988c23db",
+      measurementId: "G-SDRXBYJ272"
+    };
 
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
@@ -418,6 +414,7 @@
     let selectedPlayer = null;
     let currentAnswer = null;
     let currentPack = null;
+    let currentSelectedPlayerForPack = null;
 
     function init() {
       const savedUser = localStorage.getItem('currentUser');
@@ -449,12 +446,7 @@
           helpUsed = data.helpUsed || { 50: false, audience: false, second: false };
           currentAnswer = data.currentAnswer || null;
           currentPack = data.currentPack || null;
-
-          if (data.questions) {
-            currentGameQuestions = data.questions;
-          } else {
-            currentGameQuestions = [];
-          }
+          currentGameQuestions = data.questions || [];
 
           if (currentRole === 'player') {
             if (currentUser === selectedPlayer && gameStarted) {
@@ -500,20 +492,15 @@
     }
 
     function showLoginScreen() {
-  // Скрываем все экраны
-  document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
-  // Показываем только начальный
-  document.getElementById('loginScreen').classList.add('active');
-  // Скрываем контейнер с вопросами
-  document.getElementById('questionsContainer').style.display = 'none';
-  // Очищаем localStorage
-  localStorage.removeItem('currentUser');
-  localStorage.removeItem('currentRole');
-  // Сбрасываем переменные
-  currentUser = null;
-  currentRole = null;
-  selectedPlayer = null;
-}
+      document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+      document.getElementById('loginScreen').classList.add('active');
+      document.getElementById('questionsContainer').style.display = 'none';
+      localStorage.removeItem('currentUser');
+      localStorage.removeItem('currentRole');
+      currentUser = null;
+      currentRole = null;
+      selectedPlayer = null;
+    }
 
     function showPlayerLogin() {
       document.getElementById('loginScreen').classList.remove('active');
@@ -599,22 +586,20 @@
 
     function assignPackToPlayer(packName) {
       if (!currentSelectedPlayerForPack) return;
-      // Загрузить содержимое пака
       const packRef = database.ref(`questionBanks/${packName}`);
       packRef.once('value').then(snapshot => {
         const data = snapshot.val();
-        if (data && data.content) {
-          // Парсим содержимое в массив вопросов
-          const questions = parseQuestionsFromText(data.content);
-          database.ref('lobby').update({
-            selectedPlayer: currentSelectedPlayerForPack,
-            currentPack: packName,
-            questions: questions
-          });
-          closePackSelector();
-        } else {
-          alert('Пак пуст или не существует');
+        const questions = data && data.content ? parseQuestionsFromText(data.content) : [];
+        if (questions.length === 0) {
+          alert('Пак пуст!');
+          return;
         }
+        database.ref('lobby').update({
+          selectedPlayer: currentSelectedPlayerForPack,
+          currentPack: packName,
+          questions: questions
+        });
+        closePackSelector();
       });
     }
 
@@ -684,11 +669,7 @@
       const packRef = database.ref(`questionBanks/${packName}`);
       packRef.once('value').then(snapshot => {
         const data = snapshot.val();
-        if (data && data.content) {
-          document.getElementById('packContent').value = data.content;
-        } else {
-          document.getElementById('packContent').value = '';
-        }
+        document.getElementById('packContent').value = (data && data.content) || '';
       });
     }
 
@@ -747,7 +728,6 @@
       if (current && current.options.length === 4 && current.correct !== -1) {
         qs.push(current);
       }
-
       return qs;
     }
 
@@ -836,27 +816,35 @@
             });
           }
         } else {
-  if (helpUsed.second) {
-    helpUsed.second = false;
-    document.querySelectorAll('.option-btn').forEach(b => {
-      b.className = 'option-btn';
-    });
-    database.ref('lobby').update({
-      helpUsed: { 50: false, audience: false, second: false },
-      currentAnswer: null
-    });
-    alert('Использован второй шанс!');
-  } else {
-    // Только игрок видит поражение
-    if (currentRole === 'player') {
-      document.getElementById('gameScreen').classList.remove('active');
-      document.getElementById('defeatScreen').classList.add('active');
-    }
-    // У ведущего остаётся игра
-    database.ref('lobby').update({ gameStarted: false, selectedPlayer: null });
-  }
-}
+            if (helpUsed.second) {
+              helpUsed.second = false;
+              document.querySelectorAll('.option-btn').forEach(b => {
+                b.className = 'option-btn';
+              });
+              database.ref('lobby').update({
+                helpUsed: { 50: false, audience: false, second: false },
+                currentAnswer: null
+              });
+              alert('Использован второй шанс!');
+            } else {
+              // Только игрок видит поражение
+              if (currentRole === 'player') {
+                document.getElementById('gameScreen').classList.remove('active');
+                document.getElementById('defeatScreen').classList.add('active');
+              }
+              // У ведущего остаётся игра
+              database.ref('lobby').update({ gameStarted: false, selectedPlayer: null });
+            }
+          }
       }, 1500);
+    }
+
+    function showCorrectAnswer() {
+      if (currentRole !== 'host') return;
+      const q = currentGameQuestions[currentQuestionIndex];
+      const btns = document.querySelectorAll('.option-btn');
+      btns.forEach(b => b.classList.remove('correct', 'incorrect'));
+      btns[q.correct].classList.add('correct');
     }
 
     function useHelp50() {
@@ -896,6 +884,24 @@
       document.getElementById('defeatScreen').classList.remove('active');
       document.getElementById('playerLobbyScreen').classList.add('active');
       document.getElementById('questionsContainer').style.display = 'none';
+    }
+
+    function startGame() {
+      if (!selectedPlayer) {
+        alert('Выберите игрока!');
+        return;
+      }
+      if (!currentGameQuestions || currentGameQuestions.length === 0) {
+        alert('Нет вопросов! Добавьте пак или вопросы.');
+        return;
+      }
+      database.ref('lobby').update({
+        gameStarted: true,
+        selectedPlayer: selectedPlayer,
+        currentQuestionIndex: 0,
+        currentAnswer: null,
+        helpUsed: { 50: false, audience: false, second: false }
+      });
     }
 
     function logout() {

@@ -780,7 +780,9 @@ window.audiencePollStarted = false;
     }
     optionsGrid.appendChild(button);
   });
-
+   if (currentRole === 'player' && currentUser === selectedPlayer) {
+  button.onclick = () => selectAnswer(i);
+}
   // Обновить подсветку выбранного ответа (для всех)
   if (currentAnswer !== null) {
     const options = document.querySelectorAll('.option-btn');
@@ -788,6 +790,7 @@ window.audiencePollStarted = false;
       options[currentAnswer].classList.add('selected');
     }
   }
+     
 
   // Обновить индикатор вопросов
   for (let i = 1; i <= 10; i++) {
@@ -928,11 +931,20 @@ window.audiencePollStarted = false;
     function resetHelpButtons() {
     }
 
-    function returnToLobby() {
-      document.getElementById('defeatScreen').classList.remove('active');
-      document.getElementById('playerLobbyScreen').classList.add('active');
-      document.getElementById('questionsContainer').style.display = 'none';
-    }
+   function returnToLobby() {
+  // Сбросить игру в Firebase
+  database.ref('lobby').update({
+    gameStarted: false,
+    selectedPlayer: null,
+    currentAnswer: null,
+    helpUsed: { 50: false, audience: false, second: false }
+  });
+
+  // Переключить экран
+  document.getElementById('defeatScreen').classList.remove('active');
+  document.getElementById('playerLobbyScreen').classList.add('active');
+  document.getElementById('questionsContainer').style.display = 'none';
+}
 
     function startGame() {
       if (!selectedPlayer) {

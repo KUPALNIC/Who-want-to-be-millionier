@@ -124,6 +124,7 @@
       padding: 20px;
       border-radius: 10px;
       width: 150px;
+      display: none;
     }
 
     .question-item {
@@ -434,7 +435,7 @@
     </div>
 
     <!-- Контейнер с номерами вопросов -->
-    <div class="questions-container">
+    <div class="questions-container" id="questionsContainer">
       <div class="question-item" id="q1">1</div>
       <div class="question-item" id="q2">2</div>
       <div class="question-item" id="q3">3</div>
@@ -468,7 +469,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
   <script>
     // ЗАМЕНИТЕ ЭТИ ДАННЫЕ НА ВАШИ ИЗ FIREBASE
-    const firebaseConfig = {
+   const firebaseConfig = {
   apiKey: "AIzaSyB8hVMFnISxDy3Usn7y0QzEtFTjuzcHaBo",
   authDomain: "millioniergame.firebaseapp.com",
   databaseURL: "https://millioniergame-default-rtdb.europe-west1.firebasedatabase.app",
@@ -495,6 +496,7 @@
     let gameStarted = false;
     let selectedPlayer = null; // Игрок, с которым играет ведущий
     let gameActive = false; // Игра активна для выбранного игрока
+    let currentAnswer = null; // Текущий ответ игрока
 
     // Вопросы по умолчанию
     const defaultQuestions = [
@@ -600,6 +602,7 @@
           currentQuestionIndex = data.currentQuestionIndex || 0;
           helpUsed = data.helpUsed || { 50: false, audience: false, second: false };
           gameActive = data.gameActive || false;
+          currentAnswer = data.currentAnswer || null;
           
           updatePlayerLobby();
           updateHostLobby();
@@ -608,11 +611,29 @@
           if (currentRole === 'player' && currentUser === selectedPlayer && gameStarted) {
             document.getElementById('playerLobbyScreen').classList.remove('active');
             document.getElementById('gameScreen').classList.add('active');
+            // Показать контейнер с вопросами
+            document.getElementById('questionsContainer').style.display = 'block';
             loadQuestion(currentQuestionIndex);
           } else if (currentRole === 'player' && currentUser !== selectedPlayer && gameStarted) {
             // Игрок не выбран, но игра началась - остаться в лобби
             document.getElementById('playerLobbyScreen').classList.add('active');
             document.getElementById('gameScreen').classList.remove('active');
+            // Скрыть контейнер с вопросами
+            document.getElementById('questionsContainer').style.display = 'none';
+          }
+          
+          // Обновить состояние игры для ведущего
+          if (currentRole === 'host' && gameStarted) {
+            document.getElementById('hostLobbyScreen').classList.remove('active');
+            document.getElementById('gameScreen').classList.add('active');
+            // Показать контейнер с вопросами
+            document.getElementById('questionsContainer').style.display = 'block';
+            loadQuestion(currentQuestionIndex);
+          } else if (currentRole === 'host' && !gameStarted) {
+            document.getElementById('hostLobbyScreen').classList.add('active');
+            document.getElementById('gameScreen').classList.remove('active');
+            // Скрыть контейнер с вопросами
+            document.getElementById('questionsContainer').style.display = 'none';
           }
         }
       });
@@ -623,7 +644,7 @@
       if (currentUser && currentRole === 'player') {
         const lobbyRef = database.ref('lobby');
         lobbyRef.once('value').then((snapshot) => {
-          const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null, currentQuestionIndex: 0, helpUsed: { 50: false, audience: false, second: false }, gameActive: false };
+          const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null, currentQuestionIndex: 0, helpUsed: { 50: false, audience: false, second: false }, gameActive: false, currentAnswer: null };
           data.players = data.players.filter(p => p.name !== currentUser);
           data.readyPlayers = data.readyPlayers.filter(name => name !== currentUser);
           lobbyRef.set(data);
@@ -641,6 +662,9 @@
       document.getElementById('editorScreen').classList.remove('active');
       document.getElementById('gameScreen').classList.remove('active');
       document.getElementById('defeatScreen').classList.remove('active');
+      
+      // Скрыть контейнер с вопросами
+      document.getElementById('questionsContainer').style.display = 'none';
       
       // Очистить сохранённые данные
       localStorage.removeItem('currentUser');
@@ -692,7 +716,7 @@
         // Добавить игрока в Firebase
         const lobbyRef = database.ref('lobby');
         lobbyRef.once('value').then((snapshot) => {
-          const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null, currentQuestionIndex: 0, helpUsed: { 50: false, audience: false, second: false }, gameActive: false };
+          const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null, currentQuestionIndex: 0, helpUsed: { 50: false, audience: false, second: false }, gameActive: false, currentAnswer: null };
           if (!data.players.some(p => p.name === name)) {
             data.players.push({ name: name, ready: false });
             lobbyRef.set(data);
@@ -711,7 +735,7 @@
       if (currentUser && currentRole === 'player') {
         const lobbyRef = database.ref('lobby');
         lobbyRef.once('value').then((snapshot) => {
-          const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null, currentQuestionIndex: 0, helpUsed: { 50: false, audience: false, second: false }, gameActive: false };
+          const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null, currentQuestionIndex: 0, helpUsed: { 50: false, audience: false, second: false }, gameActive: false, currentAnswer: null };
           const player = data.players.find(p => p.name === currentUser);
           if (player && !player.ready) {
             player.ready = true;
@@ -735,7 +759,7 @@
       if (currentUser && currentRole === 'player') {
         const lobbyRef = database.ref('lobby');
         lobbyRef.once('value').then((snapshot) => {
-          const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null, currentQuestionIndex: 0, helpUsed: { 50: false, audience: false, second: false }, gameActive: false };
+          const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null, currentQuestionIndex: 0, helpUsed: { 50: false, audience: false, second: false }, gameActive: false, currentAnswer: null };
           const player = data.players.find(p => p.name === currentUser);
           if (player && player.ready) {
             player.ready = false;
@@ -792,7 +816,7 @@
     function removePlayer(playerName) {
       const lobbyRef = database.ref('lobby');
       lobbyRef.once('value').then((snapshot) => {
-        const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null, currentQuestionIndex: 0, helpUsed: { 50: false, audience: false, second: false }, gameActive: false };
+        const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null, currentQuestionIndex: 0, helpUsed: { 50: false, audience: false, second: false }, gameActive: false, currentAnswer: null };
         data.players = data.players.filter(p => p.name !== playerName);
         data.readyPlayers = data.readyPlayers.filter(name => name !== playerName);
         if (selectedPlayer === playerName) {
@@ -818,7 +842,7 @@
       
       const lobbyRef = database.ref('lobby');
       lobbyRef.once('value').then((snapshot) => {
-        const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null, currentQuestionIndex: 0, helpUsed: { 50: false, audience: false, second: false }, gameActive: false };
+        const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null, currentQuestionIndex: 0, helpUsed: { 50: false, audience: false, second: false }, gameActive: false, currentAnswer: null };
         data.selectedPlayer = selectedPlayer;
         lobbyRef.set(data);
       });
@@ -836,11 +860,14 @@
         gameStarted: true,
         currentQuestionIndex: 0,
         gameActive: true,
-        helpUsed: { 50: false, audience: false, second: false }
+        helpUsed: { 50: false, audience: false, second: false },
+        currentAnswer: null
       });
       
       document.getElementById('hostLobbyScreen').classList.remove('active');
       document.getElementById('gameScreen').classList.add('active');
+      // Показать контейнер с вопросами
+      document.getElementById('questionsContainer').style.display = 'block';
       loadQuestion(0);
     }
 
@@ -874,10 +901,16 @@
         } else {
           qElement.classList.remove('current');
         }
-      };
+      });
 
       // Сбросить состояния кнопок подсказок
       resetHelpButtons();
+      
+      // Если игрок выбрал ответ - подсветить его
+      if (currentAnswer !== null) {
+        const options = document.querySelectorAll('.option-btn');
+        options[currentAnswer].classList.add('selected');
+      }
     }
 
     // Выбор ответа
@@ -885,36 +918,48 @@
       const question = currentGameQuestions[currentQuestionIndex];
       const options = document.querySelectorAll('.option-btn');
       
-      if (selectedIndex === question.correct) {
-        // Правильный ответ
-        options[selectedIndex].classList.add('correct');
-        setTimeout(() => {
-          const lobbyRef = database.ref('lobby');
-          lobbyRef.update({
-            currentQuestionIndex: currentQuestionIndex + 1
-          });
-        }, 1500);
-      } else {
-        // Неправильный ответ
-        options[selectedIndex].classList.add('incorrect');
-        options[question.correct].classList.add('correct');
-        
-        setTimeout(() => {
-          if (helpUsed.second) {
-            // Второй шанс - продолжить игру
-            helpUsed.second = false;
-            const lobbyRef = database.ref('lobby');
+      // Обновить текущий ответ в Firebase
+      const lobbyRef = database.ref('lobby');
+      lobbyRef.update({
+        currentAnswer: selectedIndex
+      });
+      
+      if (currentRole === 'player') {
+        // Игрок не видит правильный ответ
+        options[selectedIndex].classList.add('selected');
+      } else if (currentRole === 'host') {
+        // Ведущий видит правильный ответ
+        if (selectedIndex === question.correct) {
+          // Правильный ответ
+          options[selectedIndex].classList.add('correct');
+          setTimeout(() => {
             lobbyRef.update({
-              helpUsed: helpUsed
+              currentQuestionIndex: currentQuestionIndex + 1,
+              currentAnswer: null
             });
-            // Загрузить текущий вопрос заново
-            loadQuestion(currentQuestionIndex);
-          } else {
-            // Игра окончена
-            document.getElementById('gameScreen').classList.remove('active');
-            document.getElementById('defeatScreen').classList.add('active');
-          }
-        }, 2000);
+          }, 1500);
+        } else {
+          // Неправильный ответ
+          options[selectedIndex].classList.add('incorrect');
+          options[question.correct].classList.add('correct');
+          
+          setTimeout(() => {
+            if (helpUsed.second) {
+              // Второй шанс - продолжить игру
+              helpUsed.second = false;
+              lobbyRef.update({
+                helpUsed: helpUsed,
+                currentAnswer: null
+              });
+              // Загрузить текущий вопрос заново
+              loadQuestion(currentQuestionIndex);
+            } else {
+              // Игра окончена
+              document.getElementById('gameScreen').classList.remove('active');
+              document.getElementById('defeatScreen').classList.add('active');
+            }
+          }, 2000);
+        }
       }
     }
 
@@ -1038,6 +1083,9 @@
       document.getElementById('playerLobbyScreen').classList.add('active');
       document.getElementById('returnBtn').style.display = 'none';
       
+      // Скрыть контейнер с вопросами
+      document.getElementById('questionsContainer').style.display = 'none';
+      
       // Сбросить готовность при возвращении в лобби
       cancelReady();
     }
@@ -1091,7 +1139,7 @@
     function updateQuestion(index, value, type, optionIndex = null) {
       const lobbyRef = database.ref('lobby');
       lobbyRef.once('value').then((snapshot) => {
-        const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null, currentQuestionIndex: 0, helpUsed: { 50: false, audience: false, second: false }, gameActive: false };
+        const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null, currentQuestionIndex: 0, helpUsed: { 50: false, audience: false, second: false }, gameActive: false, currentAnswer: null };
         if (type === 'question') {
           data.questions[index].question = value;
         } else if (type === 'option') {
@@ -1107,7 +1155,7 @@
     function addQuestion() {
       const lobbyRef = database.ref('lobby');
       lobbyRef.once('value').then((snapshot) => {
-        const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null, currentQuestionIndex: 0, helpUsed: { 50: false, audience: false, second: false }, gameActive: false };
+        const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null, currentQuestionIndex: 0, helpUsed: { 50: false, audience: false, second: false }, gameActive: false, currentAnswer: null };
         data.questions.push({
           question: "Новый вопрос",
           options: ["Вариант 1", "Вариант 2", "Вариант 3", "Вариант 4"],
@@ -1165,7 +1213,7 @@
       
       const lobbyRef = database.ref('lobby');
       lobbyRef.once('value').then((snapshot) => {
-        const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null, currentQuestionIndex: 0, helpUsed: { 50: false, audience: false, second: false }, gameActive: false };
+        const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null, currentQuestionIndex: 0, helpUsed: { 50: false, audience: false, second: false }, gameActive: false, currentAnswer: null };
         data.questions = data.questions.concat(newQuestions);
         lobbyRef.set(data);
         alert(`Добавлено ${newQuestions.length} вопросов!`);
@@ -1178,7 +1226,7 @@
     function deleteQuestion(index) {
       const lobbyRef = database.ref('lobby');
       lobbyRef.once('value').then((snapshot) => {
-        const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null, currentQuestionIndex: 0, helpUsed: { 50: false, audience: false, second: false }, gameActive: false };
+        const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null, currentQuestionIndex: 0, helpUsed: { 50: false, audience: false, second: false }, gameActive: false, currentAnswer: null };
         data.questions.splice(index, 1);
         lobbyRef.set(data);
       });

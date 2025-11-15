@@ -22,6 +22,7 @@
     .container {
       max-width: 1200px;
       margin: 0 auto;
+      display: flex;
     }
 
     .screen {
@@ -101,6 +102,7 @@
 
     .game-screen {
       padding: 20px;
+      flex: 1;
     }
 
     .game-header {
@@ -113,22 +115,27 @@
       border-radius: 10px;
     }
 
-    .money-line {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
+    .questions-container {
+      position: fixed;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(255, 255, 255, 0.1);
+      padding: 20px;
+      border-radius: 10px;
+      width: 150px;
     }
 
-    .money-item {
+    .question-item {
       padding: 8px 15px;
       margin: 2px 0;
       background: rgba(255, 255, 255, 0.1);
       border-radius: 5px;
       width: 100%;
-      text-align: right;
+      text-align: center;
     }
 
-    .money-item.current {
+    .question-item.current {
       background: #ff8c00;
       font-weight: bold;
     }
@@ -139,6 +146,9 @@
       border-radius: 15px;
       margin-bottom: 30px;
       text-align: center;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
     }
 
     .question-text {
@@ -411,36 +421,30 @@
 
     <!-- Игровой экран -->
     <div id="gameScreen" class="screen game-screen">
-      <div class="game-header">
-        <div class="help-buttons">
-          <button class="help-btn" id="help50" onclick="useHelp50()">50/50</button>
-          <button class="help-btn" id="helpCall" onclick="useHelpCall()">Звонок другу</button>
-          <button class="help-btn" id="helpAudience" onclick="useHelpAudience()">Помощь зала</button>
-          <button class="help-btn" id="helpSecond" onclick="useHelpSecond()">Второй шанс</button>
-        </div>
-        <div class="money-line">
-          <div class="money-item">1 000 000 ₽</div>
-          <div class="money-item">500 000 ₽</div>
-          <div class="money-item">250 000 ₽</div>
-          <div class="money-item">125 000 ₽</div>
-          <div class="money-item">64 000 ₽</div>
-          <div class="money-item">32 000 ₽</div>
-          <div class="money-item">16 000 ₽</div>
-          <div class="money-item">8 000 ₽</div>
-          <div class="money-item">4 000 ₽</div>
-          <div class="money-item">2 000 ₽</div>
-          <div class="money-item current">1 000 ₽</div>
-          <div class="money-item">500 ₽</div>
-          <div class="money-item">300 ₽</div>
-          <div class="money-item">200 ₽</div>
-          <div class="money-item">100 ₽</div>
-        </div>
+      <div class="help-buttons">
+        <button class="help-btn" id="help50" onclick="useHelp50()">50/50</button>
+        <button class="help-btn" id="helpAudience" onclick="useHelpAudience()">Помощь зала</button>
+        <button class="help-btn" id="helpSecond" onclick="useHelpSecond()">Второй шанс</button>
       </div>
       
       <div class="question-box">
         <div class="question-text" id="questionText">Вопрос загружается...</div>
         <div class="options-grid" id="optionsGrid"></div>
       </div>
+    </div>
+
+    <!-- Контейнер с номерами вопросов -->
+    <div class="questions-container">
+      <div class="question-item" id="q1">1</div>
+      <div class="question-item" id="q2">2</div>
+      <div class="question-item" id="q3">3</div>
+      <div class="question-item" id="q4">4</div>
+      <div class="question-item" id="q5">5</div>
+      <div class="question-item" id="q6">6</div>
+      <div class="question-item" id="q7">7</div>
+      <div class="question-item" id="q8">8</div>
+      <div class="question-item" id="q9">9</div>
+      <div class="question-item" id="q10">10</div>
     </div>
 
     <!-- Экран поражения -->
@@ -484,12 +488,13 @@
     let currentUser = null;
     let currentRole = null;
     let currentQuestionIndex = 0;
-    let helpUsed = { 50: false, call: false, audience: false, second: false };
+    let helpUsed = { 50: false, audience: false, second: false };
     let currentGameQuestions = [];
     let players = [];
     let readyPlayers = [];
     let gameStarted = false;
     let selectedPlayer = null; // Игрок, с которым играет ведущий
+    let gameActive = false; // Игра активна для выбранного игрока
 
     // Вопросы по умолчанию
     const defaultQuestions = [
@@ -516,6 +521,31 @@
       {
         question: "Сколько дней в високосном году?",
         options: ["364", "365", "366", "367"],
+        correct: 2
+      },
+      {
+        question: "Какой газ составляет большую часть атмосферы Земли?",
+        options: ["Кислород", "Азот", "Углекислый газ", "Водород"],
+        correct: 1
+      },
+      {
+        question: "Сколько сторон у шестиугольника?",
+        options: ["5", "6", "7", "8"],
+        correct: 1
+      },
+      {
+        question: "Кто написал 'Руслан и Людмила'?",
+        options: ["Пушкин", "Лермонтов", "Есенин", "Маяковский"],
+        correct: 0
+      },
+      {
+        question: "Какой металл самый легкий?",
+        options: ["Железо", "Алюминий", "Литий", "Медь"],
+        correct: 2
+      },
+      {
+        question: "Сколько полос на флаге США?",
+        options: ["11", "12", "13", "14"],
         correct: 2
       }
     ];
@@ -567,9 +597,23 @@
           currentGameQuestions = data.questions || defaultQuestions;
           gameStarted = data.gameStarted || false;
           selectedPlayer = data.selectedPlayer || null;
+          currentQuestionIndex = data.currentQuestionIndex || 0;
+          helpUsed = data.helpUsed || { 50: false, audience: false, second: false };
+          gameActive = data.gameActive || false;
           
           updatePlayerLobby();
           updateHostLobby();
+          
+          // Проверить, нужно ли переключить экран
+          if (currentRole === 'player' && currentUser === selectedPlayer && gameStarted) {
+            document.getElementById('playerLobbyScreen').classList.remove('active');
+            document.getElementById('gameScreen').classList.add('active');
+            loadQuestion(currentQuestionIndex);
+          } else if (currentRole === 'player' && currentUser !== selectedPlayer && gameStarted) {
+            // Игрок не выбран, но игра началась - остаться в лобби
+            document.getElementById('playerLobbyScreen').classList.add('active');
+            document.getElementById('gameScreen').classList.remove('active');
+          }
         }
       });
     }
@@ -579,7 +623,7 @@
       if (currentUser && currentRole === 'player') {
         const lobbyRef = database.ref('lobby');
         lobbyRef.once('value').then((snapshot) => {
-          const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null };
+          const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null, currentQuestionIndex: 0, helpUsed: { 50: false, audience: false, second: false }, gameActive: false };
           data.players = data.players.filter(p => p.name !== currentUser);
           data.readyPlayers = data.readyPlayers.filter(name => name !== currentUser);
           lobbyRef.set(data);
@@ -648,7 +692,7 @@
         // Добавить игрока в Firebase
         const lobbyRef = database.ref('lobby');
         lobbyRef.once('value').then((snapshot) => {
-          const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null };
+          const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null, currentQuestionIndex: 0, helpUsed: { 50: false, audience: false, second: false }, gameActive: false };
           if (!data.players.some(p => p.name === name)) {
             data.players.push({ name: name, ready: false });
             lobbyRef.set(data);
@@ -667,7 +711,7 @@
       if (currentUser && currentRole === 'player') {
         const lobbyRef = database.ref('lobby');
         lobbyRef.once('value').then((snapshot) => {
-          const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null };
+          const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null, currentQuestionIndex: 0, helpUsed: { 50: false, audience: false, second: false }, gameActive: false };
           const player = data.players.find(p => p.name === currentUser);
           if (player && !player.ready) {
             player.ready = true;
@@ -691,7 +735,7 @@
       if (currentUser && currentRole === 'player') {
         const lobbyRef = database.ref('lobby');
         lobbyRef.once('value').then((snapshot) => {
-          const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null };
+          const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null, currentQuestionIndex: 0, helpUsed: { 50: false, audience: false, second: false }, gameActive: false };
           const player = data.players.find(p => p.name === currentUser);
           if (player && player.ready) {
             player.ready = false;
@@ -748,7 +792,7 @@
     function removePlayer(playerName) {
       const lobbyRef = database.ref('lobby');
       lobbyRef.once('value').then((snapshot) => {
-        const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null };
+        const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null, currentQuestionIndex: 0, helpUsed: { 50: false, audience: false, second: false }, gameActive: false };
         data.players = data.players.filter(p => p.name !== playerName);
         data.readyPlayers = data.readyPlayers.filter(name => name !== playerName);
         if (selectedPlayer === playerName) {
@@ -774,7 +818,7 @@
       
       const lobbyRef = database.ref('lobby');
       lobbyRef.once('value').then((snapshot) => {
-        const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false };
+        const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null, currentQuestionIndex: 0, helpUsed: { 50: false, audience: false, second: false }, gameActive: false };
         data.selectedPlayer = selectedPlayer;
         lobbyRef.set(data);
       });
@@ -789,7 +833,10 @@
       
       const lobbyRef = database.ref('lobby');
       lobbyRef.update({
-        gameStarted: true
+        gameStarted: true,
+        currentQuestionIndex: 0,
+        gameActive: true,
+        helpUsed: { 50: false, audience: false, second: false }
       });
       
       document.getElementById('hostLobbyScreen').classList.remove('active');
@@ -800,7 +847,7 @@
     // Загрузить вопрос
     function loadQuestion(index) {
       if (index >= currentGameQuestions.length) {
-        alert('Поздравляем! Вы выиграли 1 000 000 ₽!');
+        alert('Поздравляем! Вы выиграли!');
         return;
       }
       
@@ -819,12 +866,13 @@
         optionsGrid.appendChild(button);
       });
 
-      // Обновить индикатор денег
-      const moneyItems = document.querySelectorAll('.money-item');
-      moneyItems.forEach((item, i) => {
-        item.classList.remove('current');
-        if (i === currentQuestionIndex) {
-          item.classList.add('current');
+      // Обновить индикатор вопросов
+      for (let i = 1; i <= 10; i++) {
+        const qElement = document.getElementById(`q${i}`);
+        if (i - 1 === currentQuestionIndex) {
+          qElement.classList.add('current');
+        } else {
+          qElement.classList.remove('current');
         }
       });
 
@@ -841,7 +889,10 @@
         // Правильный ответ
         options[selectedIndex].classList.add('correct');
         setTimeout(() => {
-          loadQuestion(currentQuestionIndex + 1);
+          const lobbyRef = database.ref('lobby');
+          lobbyRef.update({
+            currentQuestionIndex: currentQuestionIndex + 1
+          });
         }, 1500);
       } else {
         // Неправильный ответ
@@ -849,8 +900,20 @@
         options[question.correct].classList.add('correct');
         
         setTimeout(() => {
-          document.getElementById('gameScreen').classList.remove('active');
-          document.getElementById('defeatScreen').classList.add('active');
+          if (helpUsed.second) {
+            // Второй шанс - продолжить игру
+            helpUsed.second = false;
+            const lobbyRef = database.ref('lobby');
+            lobbyRef.update({
+              helpUsed: helpUsed
+            });
+            // Загрузить текущий вопрос заново
+            loadQuestion(currentQuestionIndex);
+          } else {
+            // Игра окончена
+            document.getElementById('gameScreen').classList.remove('active');
+            document.getElementById('defeatScreen').classList.add('active');
+          }
         }, 2000);
       }
     }
@@ -879,18 +942,12 @@
         options[index].classList.add('disabled');
         options[index].disabled = true;
       });
-    }
-
-    // Использовать "Звонок другу"
-    function useHelpCall() {
-      if (helpUsed['call']) return;
       
-      helpUsed['call'] = true;
-      document.getElementById('helpCall').classList.add('used');
-      
-      const question = currentGameQuestions[currentQuestionIndex];
-      const correctOption = question.options[question.correct];
-      alert(`Ваш друг думает... Я думаю, правильный ответ: "${correctOption}"`);
+      // Обновить Firebase
+      const lobbyRef = database.ref('lobby');
+      lobbyRef.update({
+        helpUsed: helpUsed
+      });
     }
 
     // Использовать "Помощь зала"
@@ -901,6 +958,12 @@
       document.getElementById('helpAudience').classList.add('used');
       
       showAudiencePoll();
+      
+      // Обновить Firebase
+      const lobbyRef = database.ref('lobby');
+      lobbyRef.update({
+        helpUsed: helpUsed
+      });
     }
 
     // Показать опрос зрителей
@@ -948,15 +1011,24 @@
       document.getElementById('helpSecond').classList.add('used');
       
       alert('Второй шанс активирован! Если вы ошибётесь, игра не закончится.');
+      
+      // Обновить Firebase
+      const lobbyRef = database.ref('lobby');
+      lobbyRef.update({
+        helpUsed: helpUsed
+      });
     }
 
     // Сбросить кнопки подсказок
     function resetHelpButtons() {
       document.getElementById('help50').classList.remove('used');
-      document.getElementById('helpCall').classList.remove('used');
       document.getElementById('helpAudience').classList.remove('used');
       document.getElementById('helpSecond').classList.remove('used');
-      helpUsed = { 50: false, call: false, audience: false, second: false };
+      
+      // Загрузить состояние из Firebase
+      if (helpUsed['50']) document.getElementById('help50').classList.add('used');
+      if (helpUsed['audience']) document.getElementById('helpAudience').classList.add('used');
+      if (helpUsed['second']) document.getElementById('helpSecond').classList.add('used');
     }
 
     // Вернуться в лобби
@@ -1019,7 +1091,7 @@
     function updateQuestion(index, value, type, optionIndex = null) {
       const lobbyRef = database.ref('lobby');
       lobbyRef.once('value').then((snapshot) => {
-        const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null };
+        const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null, currentQuestionIndex: 0, helpUsed: { 50: false, audience: false, second: false }, gameActive: false };
         if (type === 'question') {
           data.questions[index].question = value;
         } else if (type === 'option') {
@@ -1035,7 +1107,7 @@
     function addQuestion() {
       const lobbyRef = database.ref('lobby');
       lobbyRef.once('value').then((snapshot) => {
-        const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null };
+        const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null, currentQuestionIndex: 0, helpUsed: { 50: false, audience: false, second: false }, gameActive: false };
         data.questions.push({
           question: "Новый вопрос",
           options: ["Вариант 1", "Вариант 2", "Вариант 3", "Вариант 4"],
@@ -1093,7 +1165,7 @@
       
       const lobbyRef = database.ref('lobby');
       lobbyRef.once('value').then((snapshot) => {
-        const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null };
+        const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null, currentQuestionIndex: 0, helpUsed: { 50: false, audience: false, second: false }, gameActive: false };
         data.questions = data.questions.concat(newQuestions);
         lobbyRef.set(data);
         alert(`Добавлено ${newQuestions.length} вопросов!`);
@@ -1106,7 +1178,7 @@
     function deleteQuestion(index) {
       const lobbyRef = database.ref('lobby');
       lobbyRef.once('value').then((snapshot) => {
-        const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null };
+        const data = snapshot.val() || { players: [], readyPlayers: [], questions: defaultQuestions, gameStarted: false, selectedPlayer: null, currentQuestionIndex: 0, helpUsed: { 50: false, audience: false, second: false }, gameActive: false };
         data.questions.splice(index, 1);
         lobbyRef.set(data);
       });

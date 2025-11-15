@@ -317,6 +317,9 @@
         <button class="help-btn" id="helpAudience" onclick="useHelpAudience()">Помощь зала</button>
         <button class="help-btn" id="helpSecond" onclick="useHelpSecond()">Второй шанс</button>
       </div>
+      <div id="audienceTimer" style="text-align: center; color: #ffcc00; font-size: 20px; margin: 10px 0; display: none;">
+  Зрители выбирают ответ... <span id="timerCount">60</span> сек
+      </div>
       <div class="host-controls" id="hostControls" style="display:none;">
         <button class="btn" onclick="revealAnswer()">Показать ответ игрока</button>
         <button class="btn btn-secondary" onclick="showCorrectAnswer()">Показать правильный ответ</button>
@@ -469,6 +472,11 @@
             updateHostLobby();
             if (document.getElementById('bankEditorScreen').classList.contains('active')) {
               loadPackSelector();
+            }
+            // Если активен опрос зала — запустить таймер у всех
+            if (data.audiencePollActive && !window.audiencePollStarted) {
+              window.audiencePollStarted = true;
+              startAudiencePoll();
             }
           }
         }
@@ -745,103 +753,108 @@
     }
 
     function loadQuestion(index) {
+      // Сбросить флаг опроса
+window.audiencePollStarted = false;
   if (index >= currentGameQuestions.length) {
-    alert('Победа!');
-    database.ref('lobby').update({ gameStarted: false, selectedPlayer: null });
+    alert('Поздравляем! Вы выиграли!');
     return;
   }
   currentQuestionIndex = index;
-  const q = currentGameQuestions[index];
-  document.getElementById('questionText').textContent = q.question;
-  const grid = document.getElementById('optionsGrid');
-  grid.innerHTML = '';
+  const question = currentGameQuestions[index];
+  document.getElementById('questionText').textContent = question.question;
+  const optionsGrid = document.getElementById('optionsGrid');
+  optionsGrid.innerHTML = '';
 
-  q.options.forEach((opt, i) => {
-    const btn = document.createElement('button');
-    btn.className = 'option-btn';
-    btn.textContent = opt;
+  question.options.forEach((option, i) => {
+    const button = document.createElement('button');
+    button.className = 'option-btn';
+    button.textContent = option;
 
-    // Игрок может выбирать
+    // Только выбранный игрок может отвечать
     if (currentRole === 'player' && currentUser === selectedPlayer) {
-      btn.onclick = () => {
-        document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
-        btn.classList.add('selected');
-        currentAnswer = i;
-        database.ref('lobby').update({ currentAnswer: i });
-      };
+      button.onclick = () => selectAnswer(i);
     } else {
-      // Ведущий: показываем выбор игрока
-      btn.disabled = true;
-      btn.style.cursor = 'default';
+      // Все остальные просто смотрят
+      button.disabled = true;
+      button.style.cursor = 'default';
     }
-    grid.appendChild(btn);
+    optionsGrid.appendChild(button);
   });
 
-  // Подсветка выбора у ведущего
+  // Обновить подсветку выбранного ответа (для всех)
   if (currentAnswer !== null) {
-    const btns = document.querySelectorAll('.option-btn');
-    if (btns[currentAnswer]) {
-      btns[currentAnswer].classList.add('selected');
+    const options = document.querySelectorAll('.option-btn');
+    if (options[currentAnswer]) {
+      options[currentAnswer].classList.add('selected');
     }
   }
 
+  // Обновить индикатор вопросов
   for (let i = 1; i <= 10; i++) {
-    document.getElementById(`q${i}`).classList.toggle('current', i - 1 === index);
+    const qElement = document.getElementById(`q${i}`);
+    qElement.classList.toggle('current', i - 1 === currentQuestionIndex);
   }
 
   resetHelpButtons();
 }
 
-    function revealAnswer() {
-      if (currentRole !== 'host') return;
-      const q = currentGameQuestions[currentQuestionIndex];
-      const btns = document.querySelectorAll('.option-btn');
-      const isCorrect = currentAnswer === q.correct;
+   function revealAnswer() {
+  window.audiencePollStarted = false;
+  if (currentRole !== 'host') return;
+  const q = currentGameQuestions[currentQuestionIndex];
+  const btns = document.querySelectorAll('.option-btn');
+  const isCorrect = currentAnswer === q.correct;
 
-      btns[q.correct].classList.add('correct');
-      if (currentAnswer != null && currentAnswer !== q.correct) {
-        btns[currentAnswer].classList.add('incorrect');
-      }
-
-      setTimeout(() => {
-        if (isCorrect) {
-          if (currentQuestionIndex + 1 >= currentGameQuestions.length) {
-            alert('Победа!');
-            database.ref('lobby').update({ gameStarted: false, selectedPlayer: null });
-          } else {
-            database.ref('lobby').update({
-              currentQuestionIndex: currentQuestionIndex + 1,
-              currentAnswer: null,
-              helpUsed: { 50: false, audience: false, second: false }
-            });
-          }
-        } else {
-  if (helpUsed.second) {
-    helpUsed.second = false;
-    document.querySelectorAll('.option-btn').forEach(b => {
-      b.className = 'option-btn';
-    });
-    database.ref('lobby').update({
-      helpUsed: { 50: false, audience: false, second: false },
-      currentAnswer: null
-    });
-    alert('Использован второй шанс!');
-  } else {
-    // Сбросить игру в Firebase
-    database.ref('lobby').update({ gameStarted: false, selectedPlayer: null });
-
-    // Только игрок переходит на экран поражения
-    if (currentRole === 'player' && currentUser === selectedPlayer) {
-      setTimeout(() => {
-        document.getElementById('gameScreen').classList.remove('active');
-        document.getElementById('defeatScreen').classList.add('active');
-      }, 1500);
+  // Сбросить розовую подсветку от "помощи зала"
+  btns.forEach(btn => {
+    if (btn.style.backgroundColor === 'rgb(255, 105, 180)' || btn.style.backgroundColor === '#ff69b4') {
+      btn.style.backgroundColor = '';
+      btn.style.color = '';
     }
+  });
+
+  // Подсветить правильный и выбранный ответы
+  btns[q.correct].classList.add('correct');
+  if (currentAnswer != null && currentAnswer !== q.correct) {
+    btns[currentAnswer].classList.add('incorrect');
   }
-}
-      }, 1500);
-    }
 
+  setTimeout(() => {
+    if (isCorrect) {
+      if (currentQuestionIndex + 1 >= currentGameQuestions.length) {
+        alert('Победа!');
+        database.ref('lobby').update({ gameStarted: false, selectedPlayer: null });
+      } else {
+        database.ref('lobby').update({
+          currentQuestionIndex: currentQuestionIndex + 1,
+          currentAnswer: null,
+          helpUsed: { 50: false, audience: false, second: false }
+        });
+      }
+    } else {
+      if (helpUsed.second) {
+        helpUsed.second = false;
+        document.querySelectorAll('.option-btn').forEach(b => {
+          b.className = 'option-btn';
+        });
+        database.ref('lobby').update({
+          helpUsed: { 50: false, audience: false, second: false },
+          currentAnswer: null
+        });
+        alert('Использован второй шанс!');
+      } else {
+        // Сбросить игру в Firebase
+        database.ref('lobby').update({ gameStarted: false, selectedPlayer: null });
+
+        // Только игрок переходит на экран поражения
+        if (currentRole === 'player' && currentUser === selectedPlayer) {
+          document.getElementById('gameScreen').classList.remove('active');
+          document.getElementById('defeatScreen').classList.add('active');
+        }
+      }
+    }
+  }, 1500);
+}
     function showCorrectAnswer() {
       if (currentRole !== 'host') return;
       const q = currentGameQuestions[currentQuestionIndex];
@@ -864,13 +877,45 @@
       }
     }
 
-    function useHelpAudience() {
-      if (helpUsed['audience'] || currentRole !== 'player' || currentUser !== selectedPlayer) return;
-      helpUsed['audience'] = true;
-      document.getElementById('helpAudience').style.display = 'none';
-      database.ref('lobby').update({ helpUsed });
-      alert('Помощь зала: голосование не реализовано');
+   function useHelpAudience() {
+  if (helpUsed['audience']) return;
+  helpUsed['audience'] = true;
+  document.getElementById('helpAudience').classList.add('used');
+
+  // Уведомить всех через Firebase
+  const lobbyRef = database.ref('lobby');
+  lobbyRef.update({
+    helpUsed: helpUsed,
+    audiencePollActive: true
+  });
+
+  // Запустить таймер локально
+  startAudiencePoll();
+}
+    function startAudiencePoll() {
+  // Отображаем таймер у всех
+  document.getElementById('audienceTimer').style.display = 'block';
+  let timeLeft = 60;
+  document.getElementById('timerCount').textContent = timeLeft;
+
+  const timer = setInterval(() => {
+    timeLeft--;
+    document.getElementById('timerCount').textContent = timeLeft;
+    if (timeLeft <= 0) {
+      clearInterval(timer);
+      document.getElementById('audienceTimer').style.display = 'none';
+
+      // Симуляция: случайный "популярный" ответ
+      const question = currentGameQuestions[currentQuestionIndex];
+      const popularAnswer = Math.floor(Math.random() * question.options.length);
+
+      // Подсветить "популярный" ответ розовым
+      const options = document.querySelectorAll('.option-btn');
+      options[popularAnswer].style.backgroundColor = '#ff69b4'; // розовый
+      options[popularAnswer].style.color = '#fff';
     }
+  }, 1000);
+}
 
     function useHelpSecond() {
       if (helpUsed['second'] || currentRole !== 'player' || currentUser !== selectedPlayer) return;

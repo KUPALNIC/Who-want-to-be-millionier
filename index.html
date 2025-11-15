@@ -82,15 +82,6 @@
       padding: 20px;
       flex: 1;
     }
-    .game-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 30px;
-      padding: 15px;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 10px;
-    }
     .questions-container {
       position: fixed;
       right: 20px;
@@ -150,12 +141,12 @@
       transform: scale(1.02);
     }
     .option-btn.correct {
-      background: #28a745;
+      background: #28a745 !important;
     }
     .option-btn.incorrect {
-      background: #dc3545;
+      background: #dc3545 !important;
     }
-    .option-btn.disabled {
+    .option-btn.disabled, .option-btn[style*="display: none"] {
       opacity: 0.5;
       cursor: not-allowed;
     }
@@ -180,6 +171,10 @@
     .help-btn.used {
       opacity: 0.5;
       cursor: not-allowed;
+    }
+    .host-controls {
+      text-align: center;
+      margin-bottom: 20px;
     }
     .lobby-screen {
       padding: 20px;
@@ -267,9 +262,6 @@
       font-size: 48px;
       color: #dc3545;
       margin-bottom: 20px;
-    }
-    .return-btn {
-      display: none;
     }
   </style>
 </head>
@@ -359,6 +351,10 @@
         <button class="help-btn" id="help50" onclick="useHelp50()">50/50</button>
         <button class="help-btn" id="helpAudience" onclick="useHelpAudience()">Помощь зала</button>
         <button class="help-btn" id="helpSecond" onclick="useHelpSecond()">Второй шанс</button>
+        <button class="help-btn" id="helpFriend" onclick="useHelpFriend()">Звонок другу</button>
+      </div>
+      <div class="host-controls" id="hostControls" style="display:none;">
+        <button class="btn" onclick="revealAnswer()">Показать ответ</button>
       </div>
       <div class="question-box">
         <div class="question-text" id="questionText">Вопрос загружается...</div>
@@ -395,10 +391,12 @@
       <div id="pollTimer">60</div>
     </div>
   </div>
+
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
   <script>
+    // 🔑 ЗАМЕНИ ЭТИ ДАННЫЕ НА СВОИ ИЗ FIREBASE CONSOLE
     const firebaseConfig = {
   apiKey: "AIzaSyB8hVMFnISxDy3Usn7y0QzEtFTjuzcHaBo",
   authDomain: "millioniergame.firebaseapp.com",
@@ -412,15 +410,17 @@
 
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
+
     let currentUser = null;
     let currentRole = null;
     let currentQuestionIndex = 0;
-    let helpUsed = { 50: false, audience: false, second: false };
+    let helpUsed = { 50: false, audience: false, second: false, friend: false };
     let currentGameQuestions = [];
     let players = [];
     let gameStarted = false;
     let selectedPlayer = null;
     let currentAnswer = null;
+    let hostRevealed = false;
 
     const defaultQuestions = [
       { question: "Столица Франции?", options: ["Лондон", "Париж", "Берлин", "Мадрид"], correct: 1 },
@@ -448,7 +448,6 @@
         if (savedRole === 'player') {
           document.getElementById('loginScreen').classList.remove('active');
           document.getElementById('playerLobbyScreen').classList.add('active');
-          document.getElementById('playerName').value = savedUser;
         } else if (savedRole === 'host') {
           document.getElementById('loginScreen').classList.remove('active');
           document.getElementById('hostLobbyScreen').classList.add('active');
@@ -468,15 +467,13 @@
           gameStarted = data.gameStarted || false;
           selectedPlayer = data.selectedPlayer || null;
           currentQuestionIndex = data.currentQuestionIndex || 0;
-          helpUsed = data.helpUsed || { 50: false, audience: false, second: false };
+          helpUsed = data.helpUsed || { 50: false, audience: false, second: false, friend: false };
           currentAnswer = data.currentAnswer;
+          hostRevealed = data.hostRevealed || false;
 
           if (currentRole === 'player') {
             if (currentUser === selectedPlayer && gameStarted) {
-              document.getElementById('playerLobbyScreen').classList.remove('active');
-              document.getElementById('gameScreen').classList.add('active');
-              document.getElementById('questionsContainer').style.display = 'block';
-              loadQuestion(currentQuestionIndex);
+              showGameScreen();
               localStorage.setItem('selectedPlayer', selectedPlayer);
             } else {
               document.getElementById('gameScreen').classList.remove('active');
@@ -487,10 +484,7 @@
           }
           if (currentRole === 'host') {
             if (gameStarted) {
-              document.getElementById('hostLobbyScreen').classList.remove('active');
-              document.getElementById('gameScreen').classList.add('active');
-              document.getElementById('questionsContainer').style.display = 'block';
-              loadQuestion(currentQuestionIndex);
+              showGameScreen();
             } else {
               document.getElementById('gameScreen').classList.remove('active');
               document.getElementById('hostLobbyScreen').classList.add('active');
@@ -498,8 +492,24 @@
             }
             updateHostLobby();
           }
+          if (gameStarted && currentRole === 'host') {
+            loadQuestion(currentQuestionIndex);
+          }
         }
       });
+    }
+
+    function showGameScreen() {
+      document.getElementById('playerLobbyScreen').classList.remove('active');
+      document.getElementById('hostLobbyScreen').classList.remove('active');
+      document.getElementById('gameScreen').classList.add('active');
+      document.getElementById('questionsContainer').style.display = 'block';
+      if (currentRole === 'host') {
+        document.getElementById('hostControls').style.display = 'block';
+      } else {
+        document.getElementById('hostControls').style.display = 'none';
+      }
+      loadQuestion(currentQuestionIndex);
     }
 
     function removePlayerFromFirebase() {
@@ -508,7 +518,6 @@
         lobbyRef.transaction(data => {
           if (data) {
             data.players = data.players.filter(p => p.name !== currentUser);
-            data.readyPlayers = data.readyPlayers.filter(n => n !== currentUser);
             if (data.selectedPlayer === currentUser) data.selectedPlayer = null;
           }
           return data;
@@ -610,7 +619,8 @@
         gameStarted: true,
         currentQuestionIndex: 0,
         currentAnswer: null,
-        helpUsed: { 50: false, audience: false, second: false }
+        hostRevealed: false,
+        helpUsed: { 50: false, audience: false, second: false, friend: false }
       });
     }
 
@@ -624,68 +634,106 @@
       document.getElementById('questionText').textContent = q.question;
       const grid = document.getElementById('optionsGrid');
       grid.innerHTML = '';
+
       q.options.forEach((opt, i) => {
         const btn = document.createElement('button');
         btn.className = 'option-btn';
         btn.textContent = opt;
+
         if (currentRole === 'player' && currentUser === selectedPlayer) {
-          btn.onclick = () => selectAnswer(i);
-          btn.disabled = false;
+          btn.onclick = () => {
+            if (!btn.disabled && !helpUsed['50'] || !btn.style.display.includes('none')) {
+              document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+              btn.classList.add('selected');
+              currentAnswer = i;
+              database.ref('lobby').update({ currentAnswer: i, hostRevealed: false });
+            }
+          };
         } else {
           btn.disabled = true;
           btn.style.cursor = 'default';
         }
         grid.appendChild(btn);
       });
+
       for (let i = 1; i <= 10; i++) {
         document.getElementById(`q${i}`).classList.toggle('current', i - 1 === index);
       }
+
       resetHelpButtons();
+      updateOptionVisibility();
     }
 
-    function selectAnswer(i) {
+    function updateOptionVisibility() {
       const q = currentGameQuestions[currentQuestionIndex];
-      const isCorrect = i === q.correct;
-      const lobbyRef = database.ref('lobby');
-
-      if (isCorrect) {
-        if (currentQuestionIndex + 1 >= currentGameQuestions.length) {
-          alert('Поздравляем! Вы выиграли!');
-          lobbyRef.update({ gameStarted: false, selectedPlayer: null });
-        } else {
-          lobbyRef.update({ currentQuestionIndex: currentQuestionIndex + 1, currentAnswer: null });
-        }
-      } else {
-        if (helpUsed.second) {
-          helpUsed.second = false;
-          document.getElementById('helpSecond').classList.remove('used');
-          lobbyRef.update({ currentAnswer: null, helpUsed });
-          alert('Использован второй шанс!');
-        } else {
-          document.getElementById('gameScreen').classList.remove('active');
-          document.getElementById('defeatScreen').classList.add('active');
-          lobbyRef.update({ gameStarted: false, selectedPlayer: null });
+      const btns = document.querySelectorAll('.option-btn');
+      if (helpUsed['50']) {
+        const wrong = [0,1,2,3].filter(i => i !== q.correct);
+        for (let i = 0; i < 2; i++) {
+          btns[wrong[i]].style.display = 'none';
+          btns[wrong[i]].disabled = true;
         }
       }
     }
 
-    function useHelp50() {
-      if (helpUsed['50'] || currentRole !== 'player' || currentUser !== selectedPlayer) return;
-      helpUsed['50'] = true;
-      document.getElementById('help50').classList.add('used');
+    function revealAnswer() {
+      if (currentRole !== 'host' || !gameStarted) return;
       const q = currentGameQuestions[currentQuestionIndex];
       const btns = document.querySelectorAll('.option-btn');
-      const wrong = [0,1,2,3].filter(i => i !== q.correct);
-      const hide = [wrong[0], wrong[1]];
-      hide.forEach(i => {
-        btns[i].classList.add('disabled');
-        btns[i].disabled = true;
-      });
+      const isCorrect = currentAnswer === q.correct;
+
+      btns[q.correct].classList.add('correct');
+      if (currentAnswer !== null && currentAnswer !== q.correct) {
+        btns[currentAnswer].classList.add('incorrect');
+      }
+
+      setTimeout(() => {
+        if (isCorrect) {
+          if (currentQuestionIndex + 1 >= currentGameQuestions.length) {
+            alert('Победа! Игрок выиграл!');
+            database.ref('lobby').update({ gameStarted: false, selectedPlayer: null });
+          } else {
+            database.ref('lobby').update({
+              currentQuestionIndex: currentQuestionIndex + 1,
+              currentAnswer: null,
+              hostRevealed: false
+            });
+          }
+        } else {
+          if (helpUsed.second) {
+            // Сбросить «второй шанс»
+            helpUsed.second = false;
+            document.querySelectorAll('.option-btn').forEach(b => {
+              b.classList.remove('correct', 'incorrect', 'selected');
+              b.style.display = '';
+              b.disabled = false;
+            });
+            document.getElementById('helpSecond').classList.remove('used');
+            database.ref('lobby').update({
+              helpUsed: helpUsed,
+              currentAnswer: null,
+              hostRevealed: false
+            });
+            alert('Игрок использует второй шанс!');
+          } else {
+            document.getElementById('gameScreen').classList.remove('active');
+            document.getElementById('defeatScreen').classList.add('active');
+            database.ref('lobby').update({ gameStarted: false, selectedPlayer: null });
+          }
+        }
+      }, 1500);
+    }
+
+    function useHelp50() {
+      if (helpUsed['50'] || !(currentRole === 'player' && currentUser === selectedPlayer)) return;
+      helpUsed['50'] = true;
+      document.getElementById('help50').classList.add('used');
       database.ref('lobby').update({ helpUsed });
+      updateOptionVisibility();
     }
 
     function useHelpAudience() {
-      if (helpUsed['audience'] || currentRole !== 'player' || currentUser !== selectedPlayer) return;
+      if (helpUsed['audience'] || !(currentRole === 'player' && currentUser === selectedPlayer)) return;
       helpUsed['audience'] = true;
       document.getElementById('helpAudience').classList.add('used');
       showAudiencePoll();
@@ -693,15 +741,22 @@
     }
 
     function useHelpSecond() {
-      if (helpUsed['second'] || currentRole !== 'player' || currentUser !== selectedPlayer) return;
+      if (helpUsed['second'] || !(currentRole === 'player' && currentUser === selectedPlayer)) return;
       helpUsed['second'] = true;
       document.getElementById('helpSecond').classList.add('used');
       alert('Второй шанс активирован!');
       database.ref('lobby').update({ helpUsed });
     }
 
+    function useHelpFriend() {
+      if (!(currentRole === 'player' && currentUser === selectedPlayer)) return;
+      if (document.getElementById('helpFriend').classList.contains('used')) return;
+      document.getElementById('helpFriend').classList.add('used');
+      alert('Вы звоните другу...\n(Это заглушка — логика не реализована)');
+    }
+
     function resetHelpButtons() {
-      const map = {50:'help50', audience:'helpAudience', second:'helpSecond'};
+      const map = {50:'help50', audience:'helpAudience', second:'helpSecond', friend:'helpFriend'};
       Object.entries(helpUsed).forEach(([k,v]) => {
         const el = document.getElementById(map[k]);
         if (el) el.classList.toggle('used', v);

@@ -800,7 +800,20 @@ window.audiencePollStarted = false;
 
   resetHelpButtons();
 }
+function selectAnswer(index) {
+  // Убрать предыдущую подсветку
+  document.querySelectorAll('.option-btn').forEach(btn => {
+    btn.classList.remove('selected');
+  });
 
+  // Подсветить выбранный
+  const btns = document.querySelectorAll('.option-btn');
+  btns[index].classList.add('selected');
+
+  // Сохранить в Firebase
+  currentAnswer = index;
+  database.ref('lobby').update({ currentAnswer: index });
+}
    function revealAnswer() {
   window.audiencePollStarted = false;
   if (currentRole !== 'host') return;

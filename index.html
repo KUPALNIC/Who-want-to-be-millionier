@@ -302,9 +302,10 @@
         <div id="hostPlayerList"></div>
       </div>
       <div class="form-group">
-        <button class="btn btn-secondary" onclick="showBankEditor()">Управление паками</button>
-        <button class="btn btn-secondary" onclick="logout()">Выйти</button>
-      </div>
+    <button class="btn" onclick="startGame()">Начать игру</button>
+    <button class="btn btn-secondary" onclick="showBankEditor()">Управление паками</button>
+    <button class="btn btn-secondary" onclick="logout()">Выйти</button>
+  </div>
     </div>
     <!-- Игровой экран -->
     <div id="gameScreen" class="screen game-screen">
@@ -499,12 +500,20 @@
     }
 
     function showLoginScreen() {
-      [...document.querySelectorAll('.screen')].forEach(el => el.classList.remove('active'));
-      document.getElementById('loginScreen').classList.add('active');
-      document.getElementById('questionsContainer').style.display = 'none';
-      localStorage.clear();
-      currentUser = null; currentRole = null; selectedPlayer = null;
-    }
+  // Скрываем все экраны
+  document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+  // Показываем только начальный
+  document.getElementById('loginScreen').classList.add('active');
+  // Скрываем контейнер с вопросами
+  document.getElementById('questionsContainer').style.display = 'none';
+  // Очищаем localStorage
+  localStorage.removeItem('currentUser');
+  localStorage.removeItem('currentRole');
+  // Сбрасываем переменные
+  currentUser = null;
+  currentRole = null;
+  selectedPlayer = null;
+}
 
     function showPlayerLogin() {
       document.getElementById('loginScreen').classList.remove('active');

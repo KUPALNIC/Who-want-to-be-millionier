@@ -48,7 +48,7 @@
       margin-bottom: 5px;
       font-weight: bold;
     }
-    .form-group input {
+    .form-group input, .form-group textarea {
       width: 100%;
       padding: 12px;
       border: none;
@@ -176,6 +176,10 @@
     .help-btn.used {
       display: none;
     }
+    .host-controls {
+      text-align: center;
+      margin-bottom: 20px;
+    }
     .lobby-screen {
       padding: 20px;
     }
@@ -225,43 +229,34 @@
       background: rgba(255, 255, 255, 0.2);
       color: white;
     }
-    .audience-poll {
+    .modal {
       position: fixed;
       top: 0;
       left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.9);
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
       display: flex;
-      flex-direction: column;
       justify-content: center;
       align-items: center;
-      z-index: 1000;
+      z-index: 2000;
     }
-    .poll-options {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 15px;
-      margin-top: 20px;
+    .modal-content {
+      background: rgba(30,30,50,0.9);
+      padding: 30px;
+      border-radius: 15px;
+      max-width: 500px;
+      width: 90%;
     }
-    .poll-option {
-      padding: 15px;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 8px;
+    .pack-item {
+      padding: 10px;
+      margin: 5px 0;
+      background: rgba(255,255,255,0.1);
+      border-radius: 5px;
       cursor: pointer;
-      transition: all 0.3s;
     }
-    .poll-option:hover {
-      background: rgba(255, 255, 255, 0.2);
-    }
-    .defeat-screen {
-      text-align: center;
-      padding: 50px 20px;
-    }
-    .defeat-message {
-      font-size: 48px;
-      color: #dc3545;
-      margin-bottom: 20px;
+    .pack-item:hover {
+      background: rgba(255,255,255,0.2);
     }
   </style>
 </head>
@@ -327,23 +322,9 @@
         <div id="hostPlayerList"></div>
       </div>
       <div class="form-group">
-        <button class="btn" onclick="startGame()">Начать игру</button>
-        <button class="btn btn-secondary" onclick="showEditor()">Редактор вопросов</button>
+        <button class="btn btn-secondary" onclick="showQuestionBankEditor()">Управление паками вопросов</button>
         <button class="btn btn-secondary" onclick="logout()">Выйти</button>
       </div>
-    </div>
-    <!-- Редактор вопросов -->
-    <div id="editorScreen" class="screen editor-screen">
-      <h2>Редактор вопросов</h2>
-      <div class="questions-editor" id="questionsEditor"></div>
-      <div class="form-group">
-        <label>Добавить вопросы из текста:</label>
-        <textarea id="questionsText" rows="10" placeholder="Введите вопросы в формате:&#10;1. Вопрос?&#10;А) вариант 1&#10;Б) вариант 2 +&#10;В) вариант 3&#10;Г) вариант 4"></textarea>
-        <button class="btn" onclick="addQuestionsFromText()">Добавить вопросы</button>
-      </div>
-      <button class="btn" onclick="saveQuestions()">Сохранить</button>
-      <button class="btn btn-secondary" onclick="showHostLobby()">Назад</button>
-      <button class="btn btn-secondary" onclick="logout()">Выйти</button>
     </div>
     <!-- Игровой экран -->
     <div id="gameScreen" class="screen game-screen">
@@ -351,6 +332,9 @@
         <button class="help-btn" id="help50" onclick="useHelp50()">50/50</button>
         <button class="help-btn" id="helpAudience" onclick="useHelpAudience()">Помощь зала</button>
         <button class="help-btn" id="helpSecond" onclick="useHelpSecond()">Второй шанс</button>
+      </div>
+      <div class="host-controls" id="hostControls" style="display:none;">
+        <button class="btn" onclick="revealAnswer()">Показать ответ</button>
       </div>
       <div class="question-box">
         <div class="question-text" id="questionText">Вопрос загружается...</div>
@@ -379,20 +363,37 @@
       <button class="btn" onclick="returnToLobby()">Вернуться в лобби</button>
       <button class="btn btn-secondary" onclick="logout()">Выйти</button>
     </div>
-    <!-- Опрос зрителей -->
-    <div id="audiencePoll" class="audience-poll" style="display:none;">
-      <h2>Помощь зала</h2>
-      <p>Выберите ваш вариант ответа:</p>
-      <div class="poll-options" id="pollOptions"></div>
-      <div id="pollTimer">60</div>
+    <!-- Модальное окно выбора пака -->
+    <div id="packSelectorModal" class="modal" style="display:none;">
+      <div class="modal-content">
+        <h3>Выберите пак вопросов для игрока: <span id="packPlayerName"></span></h3>
+        <div id="packList"></div>
+        <button class="btn" onclick="closePackSelector()">Закрыть</button>
+      </div>
+    </div>
+    <!-- Редактор паков -->
+    <div id="bankEditorScreen" class="screen editor-screen">
+      <h2>Управление паками вопросов</h2>
+      <div class="form-group">
+        <label>Название нового пака:</label>
+        <input type="text" id="newPackName" placeholder="Например: Вопросы для Данона">
+        <button class="btn" onclick="createNewPack()">Создать пак</button>
+      </div>
+      <div class="form-group">
+        <label>Загрузить вопросы в пак из текста:</label>
+        <select id="targetPackSelect"></select>
+        <textarea id="questionsText" rows="10" placeholder="Формат:&#10;1. Вопрос?&#10;А) Вариант 1&#10;Б) Вариант 2 +&#10;В) Вариант 3&#10;Г) Вариант 4"></textarea>
+        <button class="btn" onclick="addQuestionsToPack()">Добавить в пак</button>
+      </div>
+      <button class="btn btn-secondary" onclick="showHostLobby()">Назад</button>
     </div>
   </div>
 
-  <!-- Подключение Firebase -->
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
   <script>
-    // 🔑 ЗАМЕНИ ЭТИ ДАННЫЕ НА СВОИ ИЗ FIREBASE
+    // 🔑 ЗАМЕНИ НА СВОИ ДАННЫЕ
     const firebaseConfig = {
   apiKey: "AIzaSyB8hVMFnISxDy3Usn7y0QzEtFTjuzcHaBo",
   authDomain: "millioniergame.firebaseapp.com",
@@ -417,22 +418,9 @@
     let gameStarted = false;
     let selectedPlayer = null;
     let currentAnswer = null;
-
-    const defaultQuestions = [
-      { question: "Столица Франции?", options: ["Лондон", "Париж", "Берлин", "Мадрид"], correct: 1 },
-      { question: "Сколько планет в Солнечной системе?", options: ["7", "8", "9", "10"], correct: 1 },
-      { question: "Кто написал 'Война и мир'?", options: ["Достоевский", "Толстой", "Пушкин", "Гоголь"], correct: 1 },
-      { question: "Самая большая планета в Солнечной системе?", options: ["Земля", "Марс", "Юпитер", "Сатурн"], correct: 2 },
-      { question: "Сколько дней в високосном году?", options: ["364", "365", "366", "367"], correct: 2 },
-      { question: "Какой газ составляет большую часть атмосферы Земли?", options: ["Кислород", "Азот", "Углекислый газ", "Водород"], correct: 1 },
-      { question: "Сколько сторон у шестиугольника?", options: ["5", "6", "7", "8"], correct: 1 },
-      { question: "Кто написал 'Руслан и Людмила'?", options: ["Пушкин", "Лермонтов", "Есенин", "Маяковский"], correct: 0 },
-      { question: "Какой металл самый легкий?", options: ["Железо", "Алюминий", "Литий", "Медь"], correct: 2 },
-      { question: "Сколько полос на флаге США?", options: ["11", "12", "13", "14"], correct: 2 }
-    ];
+    let playerQuestionPack = null; // Пак для текущего игрока
 
     function init() {
-      currentGameQuestions = JSON.parse(JSON.stringify(defaultQuestions));
       const savedUser = localStorage.getItem('currentUser');
       const savedRole = localStorage.getItem('currentRole');
       if (savedUser && savedRole) {
@@ -456,12 +444,18 @@
         const data = snapshot.val();
         if (data) {
           players = data.players || [];
-          currentGameQuestions = data.questions || defaultQuestions;
           gameStarted = data.gameStarted || false;
           selectedPlayer = data.selectedPlayer || null;
           currentQuestionIndex = data.currentQuestionIndex || 0;
           helpUsed = data.helpUsed || { 50: false, audience: false, second: false };
           currentAnswer = data.currentAnswer || null;
+          playerQuestionPack = data.playerQuestionPack || null;
+
+          if (data.questions) {
+            currentGameQuestions = data.questions;
+          } else {
+            currentGameQuestions = [];
+          }
 
           if (currentRole === 'player') {
             if (currentUser === selectedPlayer && gameStarted) {
@@ -482,18 +476,10 @@
               document.getElementById('questionsContainer').style.display = 'none';
             }
             updateHostLobby();
+            loadPackList();
           }
         }
       });
-    }
-
-    function showGameScreen() {
-      document.getElementById('playerLobbyScreen').classList.remove('active');
-      document.getElementById('hostLobbyScreen').classList.remove('active');
-      document.getElementById('gameScreen').classList.add('active');
-      document.getElementById('questionsContainer').style.display = 'block';
-      resetHelpButtons();
-      loadQuestion(currentQuestionIndex);
     }
 
     function removePlayerFromFirebase() {
@@ -502,7 +488,10 @@
         lobbyRef.transaction(data => {
           if (data) {
             data.players = data.players.filter(p => p.name !== currentUser);
-            if (data.selectedPlayer === currentUser) data.selectedPlayer = null;
+            if (data.selectedPlayer === currentUser) {
+              data.selectedPlayer = null;
+              data.gameStarted = false;
+            }
           }
           return data;
         });
@@ -536,7 +525,7 @@
         localStorage.setItem('currentRole', 'host');
         document.getElementById('hostLoginScreen').classList.remove('active');
         document.getElementById('hostLobbyScreen').classList.add('active');
-        updateHostLobby();
+        loadPackList();
       } else {
         alert('Неверный пароль!');
       }
@@ -551,7 +540,7 @@
         localStorage.setItem('currentRole', 'player');
         const lobbyRef = database.ref('lobby');
         lobbyRef.transaction(data => {
-          if (!data) data = { players: [], questions: defaultQuestions };
+          if (!data) data = { players: [] };
           if (!data.players.some(p => p.name === name)) {
             data.players.push({ name });
           }
@@ -559,7 +548,6 @@
         });
         document.getElementById('playerLoginScreen').classList.remove('active');
         document.getElementById('playerLobbyScreen').classList.add('active');
-        updatePlayerLobby();
       }
     }
 
@@ -593,176 +581,98 @@
     }
 
     function selectPlayer(name) {
-      selectedPlayer = selectedPlayer === name ? null : name;
-      database.ref('lobby').update({ selectedPlayer });
+      if (currentRole !== 'host') return;
+      document.getElementById('packPlayerName').textContent = name;
+      document.getElementById('packSelectorModal').style.display = 'flex';
+      currentSelectedPlayerForPack = name;
     }
 
-    function startGame() {
-      if (!selectedPlayer) return alert('Выберите игрока!');
+    function assignPackToPlayer(packName) {
+      if (!currentSelectedPlayerForPack) return;
       database.ref('lobby').update({
-        gameStarted: true,
-        currentQuestionIndex: 0,
-        currentAnswer: null,
-        helpUsed: { 50: false, audience: false, second: false }
+        selectedPlayer: currentSelectedPlayerForPack,
+        playerQuestionPack: packName
+      });
+      closePackSelector();
+      loadQuestionsForPack(packName);
+    }
+
+    function closePackSelector() {
+      document.getElementById('packSelectorModal').style.display = 'none';
+      currentSelectedPlayerForPack = null;
+    }
+
+    function loadPackList() {
+      const packRef = database.ref('questionBanks');
+      packRef.once('value').then(snapshot => {
+        const packs = snapshot.val() || {};
+        const list = document.getElementById('packList');
+        const select = document.getElementById('targetPackSelect');
+        list.innerHTML = '';
+        select.innerHTML = '';
+        Object.keys(packs).forEach(name => {
+          const div = document.createElement('div');
+          div.className = 'pack-item';
+          div.textContent = name;
+          div.onclick = () => assignPackToPlayer(name);
+          list.appendChild(div);
+
+          const opt = document.createElement('option');
+          opt.value = name;
+          opt.textContent = name;
+          select.appendChild(opt);
+        });
       });
     }
 
-    function loadQuestion(index) {
-      if (index >= currentGameQuestions.length) {
-        alert('Поздравляем! Вы выиграли!');
-        return;
-      }
-      currentQuestionIndex = index;
-      const question = currentGameQuestions[index];
-      document.getElementById('questionText').textContent = question.question;
-      const optionsGrid = document.getElementById('optionsGrid');
-      optionsGrid.innerHTML = '';
-
-      question.options.forEach((option, i) => {
-        const button = document.createElement('button');
-        button.className = 'option-btn';
-        button.textContent = option;
-        if (currentRole === 'player' && currentUser === selectedPlayer) {
-          button.onclick = () => {
-            document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
-            button.classList.add('selected');
-            currentAnswer = i;
-            database.ref('lobby').update({ currentAnswer: i });
-          };
-        } else {
-          button.disabled = true;
-          button.style.cursor = 'default';
+    function loadQuestionsForPack(packName) {
+      const packRef = database.ref(`questionBanks/${packName}`);
+      packRef.once('value').then(snapshot => {
+        const data = snapshot.val();
+        if (data && data.questions) {
+          database.ref('lobby').update({ questions: data.questions });
         }
-        optionsGrid.appendChild(button);
       });
-
-      for (let i = 1; i <= 10; i++) {
-        document.getElementById(`q${i}`).classList.toggle('current', i - 1 === currentQuestionIndex);
-      }
-      resetHelpButtons();
-    }
-
-    function useHelp50() {
-      if (helpUsed['50']) return;
-      helpUsed['50'] = true;
-      document.getElementById('help50').classList.add('used');
-      const question = currentGameQuestions[currentQuestionIndex];
-      const options = document.querySelectorAll('.option-btn');
-      const wrong = [0,1,2,3].filter(i => i !== question.correct);
-      for (let i = 0; i < 2; i++) {
-        options[wrong[i]].style.display = 'none';
-        options[wrong[i]].disabled = true;
-      }
-      database.ref('lobby').update({ helpUsed });
-    }
-
-    function useHelpAudience() {
-      if (helpUsed['audience']) return;
-      helpUsed['audience'] = true;
-      document.getElementById('helpAudience').classList.add('used');
-      showAudiencePoll();
-      database.ref('lobby').update({ helpUsed });
-    }
-
-    function useHelpSecond() {
-      if (helpUsed['second']) return;
-      helpUsed['second'] = true;
-      document.getElementById('helpSecond').classList.add('used');
-      alert('Второй шанс активирован!');
-      database.ref('lobby').update({ helpUsed });
-    }
-
-    function resetHelpButtons() {
-      const map = {50:'help50', audience:'helpAudience', second:'helpSecond'};
-      Object.entries(helpUsed).forEach(([k,v]) => {
-        const el = document.getElementById(map[k]);
-        if (el) el.classList.toggle('used', v);
-      });
-    }
-
-    function showAudiencePoll() {
-      const question = currentGameQuestions[currentQuestionIndex];
-      const cont = document.getElementById('pollOptions');
-      cont.innerHTML = question.options.map((opt,i) => 
-        `<div class="poll-option" onclick="closePoll()">${opt}</div>`
-      ).join('');
-      document.getElementById('audiencePoll').style.display = 'flex';
-      document.body.style.overflow = 'hidden';
-
-      let t = 60;
-      const timer = setInterval(() => {
-        document.getElementById('pollTimer').textContent = --t;
-        if (t <= 0) closePoll();
-      }, 1000);
-      window.pollTimer = timer;
-    }
-
-    function closePoll() {
-      clearInterval(window.pollTimer);
-      document.getElementById('audiencePoll').style.display = 'none';
-      document.body.style.overflow = 'auto';
-    }
-
-    function returnToLobby() {
-      document.getElementById('defeatScreen').classList.remove('active');
-      document.getElementById('playerLobbyScreen').classList.add('active');
-      document.getElementById('questionsContainer').style.display = 'none';
-    }
-
-    function showEditor() {
-      document.getElementById('hostLobbyScreen').classList.remove('active');
-      document.getElementById('editorScreen').classList.add('active');
-      renderQuestionsEditor();
     }
 
     function showHostLobby() {
-      document.getElementById('editorScreen').classList.remove('active');
+      document.getElementById('bankEditorScreen').classList.remove('active');
       document.getElementById('hostLobbyScreen').classList.add('active');
     }
 
-    function renderQuestionsEditor() {
-      const cont = document.getElementById('questionsEditor');
-      cont.innerHTML = currentGameQuestions.map((q,i) => `
-        <div class="question-editor">
-          <input type="text" value="${q.question}" onchange="updateField(${i}, 'question', this.value)">
-          <input type="text" value="${q.options[0]}" onchange="updateField(${i}, 'option0', this.value)">
-          <input type="text" value="${q.options[1]}" onchange="updateField(${i}, 'option1', this.value)">
-          <input type="text" value="${q.options[2]}" onchange="updateField(${i}, 'option2', this.value)">
-          <input type="text" value="${q.options[3]}" onchange="updateField(${i}, 'option3', this.value)">
-          <select onchange="updateField(${i}, 'correct', this.value)">
-            <option value="0" ${q.correct==0?'selected':''}>А</option>
-            <option value="1" ${q.correct==1?'selected':''}>Б</option>
-            <option value="2" ${q.correct==2?'selected':''}>В</option>
-            <option value="3" ${q.correct==3?'selected':''}>Г</option>
-          </select>
-          <button class="btn" onclick="deleteQuestion(${i})">Удалить</button>
-        </div>
-      `).join('');
-      const btn = document.createElement('button');
-      btn.className = 'btn';
-      btn.textContent = 'Добавить вопрос';
-      btn.onclick = () => {
-        database.ref('lobby/questions').push({
-          question: 'Новый вопрос',
-          options: ['Вариант 1','Вариант 2','Вариант 3','Вариант 4'],
-          correct: 0
+    function showQuestionBankEditor() {
+      document.getElementById('hostLobbyScreen').classList.remove('active');
+      document.getElementById('bankEditorScreen').classList.add('active');
+      loadPackListForEditor();
+    }
+
+    function loadPackListForEditor() {
+      const packRef = database.ref('questionBanks');
+      packRef.once('value').then(snapshot => {
+        const packs = snapshot.val() || {};
+        const select = document.getElementById('targetPackSelect');
+        select.innerHTML = '<option value="">Выберите пак</option>';
+        Object.keys(packs).forEach(name => {
+          const opt = document.createElement('option');
+          opt.value = name;
+          opt.textContent = name;
+          select.appendChild(opt);
         });
-      };
-      cont.appendChild(btn);
+      });
     }
 
-    function updateField(i, field, value) {
-      const ref = database.ref(`lobby/questions/${i}`);
-      if (field === 'question') ref.update({ question: value });
-      else if (field.startsWith('option')) ref.child('options').child(field[6]).set(value);
-      else if (field === 'correct') ref.update({ correct: parseInt(value) });
+    function createNewPack() {
+      const name = document.getElementById('newPackName').value.trim();
+      if (!name) return alert('Введите название пака!');
+      const packRef = database.ref(`questionBanks/${name}`);
+      packRef.set({ questions: [] });
+      document.getElementById('newPackName').value = '';
+      loadPackList();
     }
 
-    function deleteQuestion(i) {
-      database.ref(`lobby/questions/${i}`).remove();
-    }
-
-    function addQuestionsFromText() {
+    function addQuestionsToPack() {
+      const packName = document.getElementById('targetPackSelect').value;
+      if (!packName) return alert('Выберите пак!');
       const text = document.getElementById('questionsText').value;
       if (!text.trim()) return;
 
@@ -791,14 +701,156 @@
         qs.push(current);
       }
 
-      database.ref('lobby/questions').transaction(arr => {
-        return arr ? [...arr, ...qs] : qs;
+      if (qs.length === 0) return alert('Нет корректных вопросов');
+
+      const packRef = database.ref(`questionBanks/${packName}`);
+      packRef.once('value').then(snapshot => {
+        const data = snapshot.val() || { questions: [] };
+        data.questions = [...data.questions, ...qs];
+        packRef.set(data);
+        alert(`Добавлено ${qs.length} вопросов в пак "${packName}"`);
+        document.getElementById('questionsText').value = '';
       });
-      alert(`Добавлено ${qs.length} вопросов!`);
-      document.getElementById('questionsText').value = '';
     }
 
-    function saveQuestions() { alert('Сохранено!'); }
+    function showGameScreen() {
+      document.getElementById('playerLobbyScreen').classList.remove('active');
+      document.getElementById('hostLobbyScreen').classList.remove('active');
+      document.getElementById('gameScreen').classList.add('active');
+      document.getElementById('questionsContainer').style.display = 'block';
+      if (currentRole === 'host') {
+        document.getElementById('hostControls').style.display = 'block';
+      } else {
+        document.getElementById('hostControls').style.display = 'none';
+      }
+      loadQuestion(currentQuestionIndex);
+    }
+
+    function loadQuestion(index) {
+      if (index >= currentGameQuestions.length) {
+        alert('Победа!');
+        database.ref('lobby').update({ gameStarted: false, selectedPlayer: null });
+        return;
+      }
+      currentQuestionIndex = index;
+      const q = currentGameQuestions[index];
+      document.getElementById('questionText').textContent = q.question;
+      const grid = document.getElementById('optionsGrid');
+      grid.innerHTML = '';
+
+      q.options.forEach((opt, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'option-btn';
+        btn.textContent = opt;
+
+        if (currentRole === 'player' && currentUser === selectedPlayer) {
+          btn.onclick = () => {
+            document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            currentAnswer = i;
+            database.ref('lobby').update({ currentAnswer: i });
+          };
+        } else {
+          btn.disabled = true;
+          btn.style.cursor = 'default';
+        }
+        grid.appendChild(btn);
+      });
+
+      for (let i = 1; i <= 10; i++) {
+        document.getElementById(`q${i}`).classList.toggle('current', i - 1 === index);
+      }
+
+      resetHelpButtons();
+    }
+
+    function revealAnswer() {
+      if (currentRole !== 'host') return;
+      const q = currentGameQuestions[currentQuestionIndex];
+      const btns = document.querySelectorAll('.option-btn');
+      const isCorrect = currentAnswer === q.correct;
+
+      btns[q.correct].classList.add('correct');
+      if (currentAnswer != null && currentAnswer !== q.correct) {
+        btns[currentAnswer].classList.add('incorrect');
+      }
+
+      setTimeout(() => {
+        if (isCorrect) {
+          if (currentQuestionIndex + 1 >= currentGameQuestions.length) {
+            alert('Победа!');
+            database.ref('lobby').update({ gameStarted: false, selectedPlayer: null });
+          } else {
+            database.ref('lobby').update({
+              currentQuestionIndex: currentQuestionIndex + 1,
+              currentAnswer: null,
+              helpUsed: { 50: false, audience: false, second: false }
+            });
+          }
+        } else {
+          if (helpUsed.second) {
+            helpUsed.second = false;
+            document.querySelectorAll('.option-btn').forEach(b => {
+              b.className = 'option-btn';
+            });
+            database.ref('lobby').update({
+              helpUsed: { 50: false, audience: false, second: false },
+              currentAnswer: null
+            });
+            alert('Использован второй шанс!');
+          } else {
+            document.getElementById('gameScreen').classList.remove('active');
+            document.getElementById('defeatScreen').classList.add('active');
+            database.ref('lobby').update({ gameStarted: false, selectedPlayer: null });
+          }
+        }
+      }, 1500);
+    }
+
+    function useHelp50() {
+      if (helpUsed['50'] || currentRole !== 'player' || currentUser !== selectedPlayer) return;
+      helpUsed['50'] = true;
+      document.getElementById('help50').classList.add('used');
+      database.ref('lobby').update({ helpUsed });
+
+      const q = currentGameQuestions[currentQuestionIndex];
+      const btns = document.querySelectorAll('.option-btn');
+      const wrong = [0,1,2,3].filter(i => i !== q.correct);
+      for (let i = 0; i < 2; i++) {
+        btns[wrong[i]].style.display = 'none';
+      }
+    }
+
+    function useHelpAudience() {
+      if (helpUsed['audience'] || currentRole !== 'player' || currentUser !== selectedPlayer) return;
+      helpUsed['audience'] = true;
+      document.getElementById('helpAudience').classList.add('used');
+      database.ref('lobby').update({ helpUsed });
+      alert('Помощь зала: голосование не реализовано (заглушка)');
+    }
+
+    function useHelpSecond() {
+      if (helpUsed['second'] || currentRole !== 'player' || currentUser !== selectedPlayer) return;
+      helpUsed['second'] = true;
+      document.getElementById('helpSecond').classList.add('used');
+      database.ref('lobby').update({ helpUsed });
+      alert('Второй шанс активирован!');
+    }
+
+    function resetHelpButtons() {
+      document.getElementById('help50').classList.remove('used');
+      document.getElementById('helpAudience').classList.remove('used');
+      document.getElementById('helpSecond').classList.remove('used');
+      if (helpUsed['50']) document.getElementById('help50').classList.add('used');
+      if (helpUsed['audience']) document.getElementById('helpAudience').classList.add('used');
+      if (helpUsed['second']) document.getElementById('helpSecond').classList.add('used');
+    }
+
+    function returnToLobby() {
+      document.getElementById('defeatScreen').classList.remove('active');
+      document.getElementById('playerLobbyScreen').classList.add('active');
+      document.getElementById('questionsContainer').style.display = 'none';
+    }
 
     function logout() {
       if (currentRole === 'player') removePlayerFromFirebase();

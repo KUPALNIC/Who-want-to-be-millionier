@@ -480,7 +480,6 @@
   measurementId: "G-SDRXBYJ272"
 };
 
-
     // Инициализация Firebase
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
@@ -889,7 +888,13 @@
         const button = document.createElement('button');
         button.className = 'option-btn';
         button.textContent = option;
-        button.onclick = () => selectAnswer(i);
+        // Игрок может отвечать, ведущий только смотрит
+        if (currentRole === 'player' && currentUser === selectedPlayer) {
+          button.onclick = () => selectAnswer(i);
+        } else {
+          button.onclick = null;
+          button.style.cursor = 'default';
+        }
         optionsGrid.appendChild(button);
       });
 
@@ -906,14 +911,14 @@
       // Сбросить состояния кнопок подсказок
       resetHelpButtons();
       
-      // Если игрок выбрал ответ - подсветить его
-      if (currentAnswer !== null) {
+      // Если игрок выбрал ответ - подсветить его (только для ведущего)
+      if (currentAnswer !== null && currentRole === 'host') {
         const options = document.querySelectorAll('.option-btn');
         options[currentAnswer].classList.add('selected');
       }
     }
 
-    // Выбор ответа
+    // Выбор ответа (только игроком)
     function selectAnswer(selectedIndex) {
       const question = currentGameQuestions[currentQuestionIndex];
       const options = document.querySelectorAll('.option-btn');
@@ -924,43 +929,8 @@
         currentAnswer: selectedIndex
       });
       
-      if (currentRole === 'player') {
-        // Игрок не видит правильный ответ
-        options[selectedIndex].classList.add('selected');
-      } else if (currentRole === 'host') {
-        // Ведущий видит правильный ответ
-        if (selectedIndex === question.correct) {
-          // Правильный ответ
-          options[selectedIndex].classList.add('correct');
-          setTimeout(() => {
-            lobbyRef.update({
-              currentQuestionIndex: currentQuestionIndex + 1,
-              currentAnswer: null
-            });
-          }, 1500);
-        } else {
-          // Неправильный ответ
-          options[selectedIndex].classList.add('incorrect');
-          options[question.correct].classList.add('correct');
-          
-          setTimeout(() => {
-            if (helpUsed.second) {
-              // Второй шанс - продолжить игру
-              helpUsed.second = false;
-              lobbyRef.update({
-                helpUsed: helpUsed,
-                currentAnswer: null
-              });
-              // Загрузить текущий вопрос заново
-              loadQuestion(currentQuestionIndex);
-            } else {
-              // Игра окончена
-              document.getElementById('gameScreen').classList.remove('active');
-              document.getElementById('defeatScreen').classList.add('active');
-            }
-          }, 2000);
-        }
-      }
+      // Подсветить выбранный вариант
+      options[selectedIndex].classList.add('selected');
     }
 
     // Использовать подсказку 50/50

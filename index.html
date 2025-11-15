@@ -816,26 +816,29 @@
             });
           }
         } else {
-            if (helpUsed.second) {
-              helpUsed.second = false;
-              document.querySelectorAll('.option-btn').forEach(b => {
-                b.className = 'option-btn';
-              });
-              database.ref('lobby').update({
-                helpUsed: { 50: false, audience: false, second: false },
-                currentAnswer: null
-              });
-              alert('Использован второй шанс!');
-            } else {
-              // Только игрок видит поражение
-              if (currentRole === 'player') {
-                document.getElementById('gameScreen').classList.remove('active');
-                document.getElementById('defeatScreen').classList.add('active');
-              }
-              // У ведущего остаётся игра
-              database.ref('lobby').update({ gameStarted: false, selectedPlayer: null });
-            }
-          }
+  if (helpUsed.second) {
+    helpUsed.second = false;
+    document.querySelectorAll('.option-btn').forEach(b => {
+      b.className = 'option-btn';
+    });
+    database.ref('lobby').update({
+      helpUsed: { 50: false, audience: false, second: false },
+      currentAnswer: null
+    });
+    alert('Использован второй шанс!');
+  } else {
+    // Сбросить игру в Firebase
+    database.ref('lobby').update({ gameStarted: false, selectedPlayer: null });
+
+    // Только игрок переходит на экран поражения
+    if (currentRole === 'player' && currentUser === selectedPlayer) {
+      setTimeout(() => {
+        document.getElementById('gameScreen').classList.remove('active');
+        document.getElementById('defeatScreen').classList.add('active');
+      }, 1500);
+    }
+  }
+}
       }, 1500);
     }
 
@@ -864,7 +867,7 @@
     function useHelpAudience() {
       if (helpUsed['audience'] || currentRole !== 'player' || currentUser !== selectedPlayer) return;
       helpUsed['audience'] = true;
-      document.getElementById('help50').style.display = 'none';
+      document.getElementById('helpAudience').style.display = 'none';
       database.ref('lobby').update({ helpUsed });
       alert('Помощь зала: голосование не реализовано');
     }
@@ -872,7 +875,7 @@
     function useHelpSecond() {
       if (helpUsed['second'] || currentRole !== 'player' || currentUser !== selectedPlayer) return;
       helpUsed['second'] = true;
-      document.getElementById('help50').style.display = 'none';
+      document.getElementById('helpSecond').style.display = 'none';
       database.ref('lobby').update({ helpUsed });
       alert('Второй шанс активирован!');
     }

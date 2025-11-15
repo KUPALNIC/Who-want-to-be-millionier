@@ -48,7 +48,7 @@
       margin-bottom: 5px;
       font-weight: bold;
     }
-    .form-group input, .form-group textarea {
+    .form-group input, .form-group textarea, .form-group select {
       width: 100%;
       padding: 12px;
       border: none;
@@ -220,15 +220,6 @@
       background: rgba(255, 255, 255, 0.05);
       border-radius: 8px;
     }
-    .question-editor input {
-      width: 100%;
-      padding: 8px;
-      margin: 5px 0;
-      border: none;
-      border-radius: 5px;
-      background: rgba(255, 255, 255, 0.2);
-      color: white;
-    }
     .modal {
       position: fixed;
       top: 0;
@@ -322,7 +313,7 @@
         <div id="hostPlayerList"></div>
       </div>
       <div class="form-group">
-        <button class="btn btn-secondary" onclick="showQuestionBankEditor()">Управление паками вопросов</button>
+        <button class="btn btn-secondary" onclick="showBankEditor()">Управление паками</button>
         <button class="btn btn-secondary" onclick="logout()">Выйти</button>
       </div>
     </div>
@@ -376,14 +367,23 @@
       <h2>Управление паками вопросов</h2>
       <div class="form-group">
         <label>Название нового пака:</label>
-        <input type="text" id="newPackName" placeholder="Например: Вопросы для Данона">
+        <input type="text" id="newPackName" placeholder="Например: вопросы для Данона">
         <button class="btn" onclick="createNewPack()">Создать пак</button>
       </div>
       <div class="form-group">
-        <label>Загрузить вопросы в пак из текста:</label>
-        <select id="targetPackSelect"></select>
-        <textarea id="questionsText" rows="10" placeholder="Формат:&#10;1. Вопрос?&#10;А) Вариант 1&#10;Б) Вариант 2 +&#10;В) Вариант 3&#10;Г) Вариант 4"></textarea>
-        <button class="btn" onclick="addQuestionsToPack()">Добавить в пак</button>
+        <label>Выберите пак для редактирования:</label>
+        <select id="packSelector" onchange="loadPackQuestions(this.value)">
+          <option value="">— Выберите пак —</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Вопросы в паке:</label>
+        <div id="packQuestionsEditor"></div>
+      </div>
+      <div class="form-group">
+        <label>Или добавьте вопросы из текста:</label>
+        <textarea id="questionsText" rows="10" placeholder="Формат:&#10;1. Вопрос?&#10;А) вариант 1&#10;Б) вариант 2 +&#10;В) вариант 3&#10;Г) вариант 4"></textarea>
+        <button class="btn" onclick="addQuestionsToSelectedPack()">Добавить в выбранный пак</button>
       </div>
       <button class="btn btn-secondary" onclick="showHostLobby()">Назад</button>
     </div>
@@ -418,7 +418,7 @@
     let gameStarted = false;
     let selectedPlayer = null;
     let currentAnswer = null;
-    let playerQuestionPack = null; // Пак для текущего игрока
+    let currentPack = null;
 
     function init() {
       const savedUser = localStorage.getItem('currentUser');
@@ -449,7 +449,7 @@
           currentQuestionIndex = data.currentQuestionIndex || 0;
           helpUsed = data.helpUsed || { 50: false, audience: false, second: false };
           currentAnswer = data.currentAnswer || null;
-          playerQuestionPack = data.playerQuestionPack || null;
+          currentPack = data.currentPack || null;
 
           if (data.questions) {
             currentGameQuestions = data.questions;
@@ -476,7 +476,9 @@
               document.getElementById('questionsContainer').style.display = 'none';
             }
             updateHostLobby();
-            loadPackList();
+            if (document.getElementById('bankEditorScreen').classList.contains('active')) {
+              loadPackSelector();
+            }
           }
         }
       });
@@ -525,7 +527,7 @@
         localStorage.setItem('currentRole', 'host');
         document.getElementById('hostLoginScreen').classList.remove('active');
         document.getElementById('hostLobbyScreen').classList.add('active');
-        loadPackList();
+        loadPackSelector();
       } else {
         alert('Неверный пароль!');
       }
@@ -585,16 +587,26 @@
       document.getElementById('packPlayerName').textContent = name;
       document.getElementById('packSelectorModal').style.display = 'flex';
       currentSelectedPlayerForPack = name;
+      loadPackListForSelector();
     }
 
     function assignPackToPlayer(packName) {
       if (!currentSelectedPlayerForPack) return;
-      database.ref('lobby').update({
-        selectedPlayer: currentSelectedPlayerForPack,
-        playerQuestionPack: packName
+      // Загрузить вопросы из пака
+      const packRef = database.ref(`questionBanks/${packName}`);
+      packRef.once('value').then(snapshot => {
+        const data = snapshot.val();
+        if (data && data.questions) {
+          database.ref('lobby').update({
+            selectedPlayer: currentSelectedPlayerForPack,
+            currentPack: packName,
+            questions: data.questions
+          });
+          closePackSelector();
+        } else {
+          alert('Пак пуст или не существует');
+        }
       });
-      closePackSelector();
-      loadQuestionsForPack(packName);
     }
 
     function closePackSelector() {
@@ -602,36 +614,19 @@
       currentSelectedPlayerForPack = null;
     }
 
-    function loadPackList() {
+    function loadPackListForSelector() {
       const packRef = database.ref('questionBanks');
       packRef.once('value').then(snapshot => {
         const packs = snapshot.val() || {};
         const list = document.getElementById('packList');
-        const select = document.getElementById('targetPackSelect');
         list.innerHTML = '';
-        select.innerHTML = '';
         Object.keys(packs).forEach(name => {
           const div = document.createElement('div');
           div.className = 'pack-item';
           div.textContent = name;
           div.onclick = () => assignPackToPlayer(name);
           list.appendChild(div);
-
-          const opt = document.createElement('option');
-          opt.value = name;
-          opt.textContent = name;
-          select.appendChild(opt);
         });
-      });
-    }
-
-    function loadQuestionsForPack(packName) {
-      const packRef = database.ref(`questionBanks/${packName}`);
-      packRef.once('value').then(snapshot => {
-        const data = snapshot.val();
-        if (data && data.questions) {
-          database.ref('lobby').update({ questions: data.questions });
-        }
       });
     }
 
@@ -640,18 +635,18 @@
       document.getElementById('hostLobbyScreen').classList.add('active');
     }
 
-    function showQuestionBankEditor() {
+    function showBankEditor() {
       document.getElementById('hostLobbyScreen').classList.remove('active');
       document.getElementById('bankEditorScreen').classList.add('active');
-      loadPackListForEditor();
+      loadPackSelector();
     }
 
-    function loadPackListForEditor() {
-      const packRef = database.ref('questionBanks');
-      packRef.once('value').then(snapshot => {
+    function loadPackSelector() {
+      const select = document.getElementById('packSelector');
+      select.innerHTML = '<option value="">— Выберите пак —</option>';
+      const packsRef = database.ref('questionBanks');
+      packsRef.once('value').then(snapshot => {
         const packs = snapshot.val() || {};
-        const select = document.getElementById('targetPackSelect');
-        select.innerHTML = '<option value="">Выберите пак</option>';
         Object.keys(packs).forEach(name => {
           const opt = document.createElement('option');
           opt.value = name;
@@ -665,16 +660,90 @@
       const name = document.getElementById('newPackName').value.trim();
       if (!name) return alert('Введите название пака!');
       const packRef = database.ref(`questionBanks/${name}`);
-      packRef.set({ questions: [] });
-      document.getElementById('newPackName').value = '';
-      loadPackList();
+      packRef.set({ questions: [] }, () => {
+        alert(`Пак "${name}" создан!`);
+        document.getElementById('newPackName').value = '';
+        loadPackSelector();
+      });
     }
 
-    function addQuestionsToPack() {
-      const packName = document.getElementById('targetPackSelect').value;
-      if (!packName) return alert('Выберите пак!');
-      const text = document.getElementById('questionsText').value;
-      if (!text.trim()) return;
+    function loadPackQuestions(packName) {
+      if (!packName) {
+        document.getElementById('packQuestionsEditor').innerHTML = '';
+        return;
+      }
+      const packRef = database.ref(`questionBanks/${packName}`);
+      packRef.once('value').then(snapshot => {
+        const data = snapshot.val();
+        if (data && data.questions) {
+          renderPackEditor(packName, data.questions);
+        } else {
+          renderPackEditor(packName, []);
+        }
+      });
+    }
+
+    function renderPackEditor(packName, questions) {
+      const container = document.getElementById('packQuestionsEditor');
+      container.innerHTML = '';
+      questions.forEach((q, index) => {
+        const div = document.createElement('div');
+        div.className = 'question-editor';
+        div.innerHTML = `
+          <input type="text" value="${q.question || ''}" onchange="updatePackQuestion('${packName}', ${index}, 'question', this.value)">
+          <input type="text" value="${q.options?.[0] || ''}" onchange="updatePackQuestion('${packName}', ${index}, 'option', 0, this.value)">
+          <input type="text" value="${q.options?.[1] || ''}" onchange="updatePackQuestion('${packName}', ${index}, 'option', 1, this.value)">
+          <input type="text" value="${q.options?.[2] || ''}" onchange="updatePackQuestion('${packName}', ${index}, 'option', 2, this.value)">
+          <input type="text" value="${q.options?.[3] || ''}" onchange="updatePackQuestion('${packName}', ${index}, 'option', 3, this.value)">
+          <select onchange="updatePackQuestion('${packName}', ${index}, 'correct', null, this.value)">
+            <option value="0" ${q.correct === 0 ? 'selected' : ''}>А</option>
+            <option value="1" ${q.correct === 1 ? 'selected' : ''}>Б</option>
+            <option value="2" ${q.correct === 2 ? 'selected' : ''}>В</option>
+            <option value="3" ${q.correct === 3 ? 'selected' : ''}>Г</option>
+          </select>
+          <button class="btn" onclick="deletePackQuestion('${packName}', ${index})">Удалить</button>
+        `;
+        container.appendChild(div);
+      });
+
+      const btn = document.createElement('button');
+      btn.className = 'btn';
+      btn.textContent = 'Добавить вопрос';
+      btn.onclick = () => addQuestionToPack(packName);
+      container.appendChild(btn);
+    }
+
+    function updatePackQuestion(packName, index, field, optionIndex = null, value) {
+      const ref = database.ref(`questionBanks/${packName}/questions/${index}`);
+      if (field === 'question') {
+        ref.update({ question: value });
+      } else if (field === 'option') {
+        ref.child('options').child(optionIndex).set(value);
+      } else if (field === 'correct') {
+        ref.update({ correct: parseInt(value) });
+      }
+    }
+
+    function deletePackQuestion(packName, index) {
+      database.ref(`questionBanks/${packName}/questions/${index}`).remove();
+      loadPackQuestions(packName);
+    }
+
+    function addQuestionToPack(packName) {
+      const newQuestion = {
+        question: "Новый вопрос",
+        options: ["Вариант А", "Вариант Б", "Вариант В", "Вариант Г"],
+        correct: 0
+      };
+      database.ref(`questionBanks/${packName}/questions`).push(newQuestion);
+      loadPackQuestions(packName);
+    }
+
+    function addQuestionsToSelectedPack() {
+      const packName = document.getElementById('packSelector').value;
+      if (!packName) return alert('Сначала выберите пак!');
+      const text = document.getElementById('questionsText').value.trim();
+      if (!text) return alert('Введите вопросы!');
 
       const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
       const qs = [];
@@ -706,10 +775,12 @@
       const packRef = database.ref(`questionBanks/${packName}`);
       packRef.once('value').then(snapshot => {
         const data = snapshot.val() || { questions: [] };
-        data.questions = [...data.questions, ...qs];
-        packRef.set(data);
-        alert(`Добавлено ${qs.length} вопросов в пак "${packName}"`);
-        document.getElementById('questionsText').value = '';
+        const updated = [...data.questions, ...qs];
+        packRef.update({ questions: updated }, () => {
+          alert(`Добавлено ${qs.length} вопросов в пак "${packName}"`);
+          document.getElementById('questionsText').value = '';
+          loadPackQuestions(packName);
+        });
       });
     }
 
@@ -826,7 +897,7 @@
       helpUsed['audience'] = true;
       document.getElementById('helpAudience').classList.add('used');
       database.ref('lobby').update({ helpUsed });
-      alert('Помощь зала: голосование не реализовано (заглушка)');
+      alert('Помощь зала: голосование не реализовано');
     }
 
     function useHelpSecond() {

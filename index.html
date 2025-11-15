@@ -48,7 +48,7 @@
       margin-bottom: 5px;
       font-weight: bold;
     }
-    .form-group input, .form-group textarea, .form-group select {
+    .form-group input {
       width: 100%;
       padding: 12px;
       border: none;
@@ -161,13 +161,6 @@
       justify-content: center;
       margin-bottom: 20px;
     }
-    .host-controls {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    .host-controls .btn {
-      margin: 0 5px;
-    }
     .help-btn {
       padding: 10px 15px;
       background: #6c757d;
@@ -212,34 +205,63 @@
     .editor-screen {
       padding: 20px;
     }
-    .modal {
+    .questions-editor {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 20px;
+      border-radius: 10px;
+    }
+    .question-editor {
+      margin-bottom: 20px;
+      padding: 15px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+    }
+    .question-editor input {
+      width: 100%;
+      padding: 8px;
+      margin: 5px 0;
+      border: none;
+      border-radius: 5px;
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+    }
+    .audience-poll {
       position: fixed;
       top: 0;
       left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.8);
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.9);
       display: flex;
+      flex-direction: column;
       justify-content: center;
       align-items: center;
-      z-index: 2000;
+      z-index: 1000;
     }
-    .modal-content {
-      background: rgba(30,30,50,0.9);
-      padding: 30px;
-      border-radius: 15px;
-      max-width: 500px;
-      width: 90%;
+    .poll-options {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+      margin-top: 20px;
     }
-    .pack-item {
-      padding: 10px;
-      margin: 5px 0;
-      background: rgba(255,255,255,0.1);
-      border-radius: 5px;
+    .poll-option {
+      padding: 15px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
       cursor: pointer;
+      transition: all 0.3s;
     }
-    .pack-item:hover {
-      background: rgba(255,255,255,0.2);
+    .poll-option:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+    .defeat-screen {
+      text-align: center;
+      padding: 50px 20px;
+    }
+    .defeat-message {
+      font-size: 48px;
+      color: #dc3545;
+      margin-bottom: 20px;
     }
   </style>
 </head>
@@ -306,9 +328,22 @@
       </div>
       <div class="form-group">
         <button class="btn" onclick="startGame()">Начать игру</button>
-        <button class="btn btn-secondary" onclick="showBankEditor()">Управление паками</button>
+        <button class="btn btn-secondary" onclick="showEditor()">Редактор вопросов</button>
         <button class="btn btn-secondary" onclick="logout()">Выйти</button>
       </div>
+    </div>
+    <!-- Редактор вопросов -->
+    <div id="editorScreen" class="screen editor-screen">
+      <h2>Редактор вопросов</h2>
+      <div class="questions-editor" id="questionsEditor"></div>
+      <div class="form-group">
+        <label>Добавить вопросы из текста:</label>
+        <textarea id="questionsText" rows="10" placeholder="Введите вопросы в формате:&#10;Вопрос?&#10;1) вариант 1&#10;2) вариант 2&#10;3) вариант 3 +&#10;4) вариант 4"></textarea>
+        <button class="btn" onclick="addQuestionsFromText()">Добавить вопросы</button>
+      </div>
+      <button class="btn" onclick="saveQuestions()">Сохранить</button>
+      <button class="btn btn-secondary" onclick="showHostLobby()">Назад</button>
+      <button class="btn btn-secondary" onclick="logout()">Выйти</button>
     </div>
     <!-- Игровой экран -->
     <div id="gameScreen" class="screen game-screen">
@@ -316,10 +351,6 @@
         <button class="help-btn" id="help50" onclick="useHelp50()">50/50</button>
         <button class="help-btn" id="helpAudience" onclick="useHelpAudience()">Помощь зала</button>
         <button class="help-btn" id="helpSecond" onclick="useHelpSecond()">Второй шанс</button>
-      </div>
-      <div class="host-controls" id="hostControls" style="display:none;">
-        <button class="btn" onclick="revealAnswer()">Показать ответ игрока</button>
-        <button class="btn btn-secondary" onclick="showCorrectAnswer()">Показать правильный ответ</button>
       </div>
       <div class="question-box">
         <div class="question-text" id="questionText">Вопрос загружается...</div>
@@ -348,62 +379,33 @@
       <button class="btn" onclick="returnToLobby()">Вернуться в лобби</button>
       <button class="btn btn-secondary" onclick="logout()">Выйти</button>
     </div>
-    <!-- Модальное окно выбора пака -->
-    <div id="packSelectorModal" class="modal" style="display:none;">
-      <div class="modal-content">
-        <h3>Выберите пак вопросов для игрока: <span id="packPlayerName"></span></h3>
-        <div id="packList"></div>
-        <button class="btn" onclick="closePackSelector()">Закрыть</button>
-      </div>
-    </div>
-    <!-- Редактор паков -->
-    <div id="bankEditorScreen" class="screen editor-screen">
-      <h2>Управление паками вопросов</h2>
-      <div class="form-group">
-        <label>Название нового пака:</label>
-        <input type="text" id="newPackName" placeholder="Например: вопросы для Данона">
-        <button class="btn" onclick="createNewPack()">Создать пак</button>
-      </div>
-      <div class="form-group">
-        <label>Выберите пак для редактирования:</label>
-        <select id="packSelector" onchange="loadPackContent(this.value)">
-          <option value="">— Выберите пак —</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Вопросы в паке (редактируйте здесь):</label>
-        <textarea id="packContent" rows="15" placeholder="Здесь будет содержимое выбранного пака..."></textarea>
-      </div>
-      <div class="form-group">
-        <label>Или добавьте вопросы из текста:</label>
-        <textarea id="questionsText" rows="10" placeholder="Формат:&#10;1. Вопрос?&#10;А) вариант 1&#10;Б) вариант 2 +&#10;В) вариант 3&#10;Г) вариант 4"></textarea>
-        <button class="btn" onclick="addQuestionsToSelectedPack()">Добавить в выбранный пак</button>
-      </div>
-      <div class="form-group">
-        <button class="btn" onclick="savePackContent()">Сохранить изменения в паке</button>
-      </div>
-      <button class="btn btn-secondary" onclick="showHostLobby()">Назад</button>
+    <!-- Опрос зрителей -->
+    <div id="audiencePoll" class="audience-poll" style="display:none;">
+      <h2>Помощь зала</h2>
+      <p>Выберите ваш вариант ответа:</p>
+      <div class="poll-options" id="pollOptions"></div>
+      <div id="pollTimer">60</div>
     </div>
   </div>
-
-  <!-- Firebase -->
+  <!-- Подключение Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
   <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyB8hVMFnISxDy3Usn7y0QzEtFTjuzcHaBo",
-      authDomain: "millioniergame.firebaseapp.com",
-      databaseURL: "https://millioniergame-default-rtdb.europe-west1.firebasedatabase.app",
-      projectId: "millioniergame",
-      storageBucket: "millioniergame.firebasestorage.app",
-      messagingSenderId: "348959703618",
-      appId: "1:348959703618:web:113d7c8076606d988c23db",
-      measurementId: "G-SDRXBYJ272"
-    };
-
+    // ЗАМЕНИТЕ ЭТИ ДАННЫЕ НА ВАШИ ИЗ FIREBASE
+   const firebaseConfig = {
+  apiKey: "AIzaSyB8hVMFnISxDy3Usn7y0QzEtFTjuzcHaBo",
+  authDomain: "millioniergame.firebaseapp.com",
+  databaseURL: "https://millioniergame-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "millioniergame",
+  storageBucket: "millioniergame.firebasestorage.app",
+  messagingSenderId: "348959703618",
+  appId: "1:348959703618:web:113d7c8076606d988c23db",
+  measurementId: "G-SDRXBYJ272"
+};
+    // Инициализация Firebase
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
-
+    // Данные игры
     let currentUser = null;
     let currentRole = null;
     let currentQuestionIndex = 0;
@@ -413,10 +415,22 @@
     let gameStarted = false;
     let selectedPlayer = null;
     let currentAnswer = null;
-    let currentPack = null;
-    let currentSelectedPlayerForPack = null;
+    // Вопросы по умолчанию
+    const defaultQuestions = [
+      { question: "Столица Франции?", options: ["Лондон", "Париж", "Берлин", "Мадрид"], correct: 1 },
+      { question: "Сколько планет в Солнечной системе?", options: ["7", "8", "9", "10"], correct: 1 },
+      { question: "Кто написал 'Война и мир'?", options: ["Достоевский", "Толстой", "Пушкин", "Гоголь"], correct: 1 },
+      { question: "Самая большая планета в Солнечной системе?", options: ["Земля", "Марс", "Юпитер", "Сатурн"], correct: 2 },
+      { question: "Сколько дней в високосном году?", options: ["364", "365", "366", "367"], correct: 2 },
+      { question: "Какой газ составляет большую часть атмосферы Земли?", options: ["Кислород", "Азот", "Углекислый газ", "Водород"], correct: 1 },
+      { question: "Сколько сторон у шестиугольника?", options: ["5", "6", "7", "8"], correct: 1 },
+      { question: "Кто написал 'Руслан и Людмила'?", options: ["Пушкин", "Лермонтов", "Есенин", "Маяковский"], correct: 0 },
+      { question: "Какой металл самый легкий?", options: ["Железо", "Алюминий", "Литий", "Медь"], correct: 2 },
+      { question: "Сколько полос на флаге США?", options: ["11", "12", "13", "14"], correct: 2 }
+    ];
 
     function init() {
+      currentGameQuestions = JSON.parse(JSON.stringify(defaultQuestions));
       const savedUser = localStorage.getItem('currentUser');
       const savedRole = localStorage.getItem('currentRole');
       if (savedUser && savedRole) {
@@ -440,35 +454,42 @@
         const data = snapshot.val();
         if (data) {
           players = data.players || [];
+          currentGameQuestions = data.questions || defaultQuestions;
           gameStarted = data.gameStarted || false;
           selectedPlayer = data.selectedPlayer || null;
           currentQuestionIndex = data.currentQuestionIndex || 0;
           helpUsed = data.helpUsed || { 50: false, audience: false, second: false };
-          currentAnswer = data.currentAnswer || null;
-          currentPack = data.currentPack || null;
-          currentGameQuestions = data.questions || [];
+          currentAnswer = data.currentAnswer;
+
+          updatePlayerLobby();
+          updateHostLobby();
 
           if (currentRole === 'player') {
             if (currentUser === selectedPlayer && gameStarted) {
               showGameScreen();
+              // Подсветить выбранный ответ
+              if (currentAnswer !== null) {
+                const btns = document.querySelectorAll('.option-btn');
+                if (btns[currentAnswer]) btns[currentAnswer].classList.add('selected');
+              }
             } else {
               document.getElementById('gameScreen').classList.remove('active');
               document.getElementById('playerLobbyScreen').classList.add('active');
               document.getElementById('questionsContainer').style.display = 'none';
             }
-            updatePlayerLobby();
           }
           if (currentRole === 'host') {
             if (gameStarted) {
               showGameScreen();
+              // Подсветить выбранный ответ
+              if (currentAnswer !== null) {
+                const btns = document.querySelectorAll('.option-btn');
+                if (btns[currentAnswer]) btns[currentAnswer].classList.add('selected');
+              }
             } else {
               document.getElementById('gameScreen').classList.remove('active');
               document.getElementById('hostLobbyScreen').classList.add('active');
               document.getElementById('questionsContainer').style.display = 'none';
-            }
-            updateHostLobby();
-            if (document.getElementById('bankEditorScreen').classList.contains('active')) {
-              loadPackSelector();
             }
           }
         }
@@ -481,10 +502,7 @@
         lobbyRef.transaction(data => {
           if (data) {
             data.players = data.players.filter(p => p.name !== currentUser);
-            if (data.selectedPlayer === currentUser) {
-              data.selectedPlayer = null;
-              data.gameStarted = false;
-            }
+            if (data.selectedPlayer === currentUser) data.selectedPlayer = null;
           }
           return data;
         });
@@ -492,14 +510,11 @@
     }
 
     function showLoginScreen() {
-      document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+      [...document.querySelectorAll('.screen')].forEach(el => el.classList.remove('active'));
       document.getElementById('loginScreen').classList.add('active');
       document.getElementById('questionsContainer').style.display = 'none';
-      localStorage.removeItem('currentUser');
-      localStorage.removeItem('currentRole');
-      currentUser = null;
-      currentRole = null;
-      selectedPlayer = null;
+      localStorage.clear();
+      currentUser = null; currentRole = null; selectedPlayer = null;
     }
 
     function showPlayerLogin() {
@@ -521,7 +536,7 @@
         localStorage.setItem('currentRole', 'host');
         document.getElementById('hostLoginScreen').classList.remove('active');
         document.getElementById('hostLobbyScreen').classList.add('active');
-        loadPackSelector();
+        updateHostLobby();
       } else {
         alert('Неверный пароль!');
       }
@@ -536,7 +551,7 @@
         localStorage.setItem('currentRole', 'player');
         const lobbyRef = database.ref('lobby');
         lobbyRef.transaction(data => {
-          if (!data) data = { players: [] };
+          if (!data) data = { players: [], questions: defaultQuestions };
           if (!data.players.some(p => p.name === name)) {
             data.players.push({ name });
           }
@@ -544,6 +559,7 @@
         });
         document.getElementById('playerLoginScreen').classList.remove('active');
         document.getElementById('playerLobbyScreen').classList.add('active');
+        updatePlayerLobby();
       }
     }
 
@@ -577,158 +593,18 @@
     }
 
     function selectPlayer(name) {
-      if (currentRole !== 'host') return;
-      document.getElementById('packPlayerName').textContent = name;
-      document.getElementById('packSelectorModal').style.display = 'flex';
-      currentSelectedPlayerForPack = name;
-      loadPackListForSelector();
+      selectedPlayer = selectedPlayer === name ? null : name;
+      database.ref('lobby').update({ selectedPlayer });
     }
 
-    function assignPackToPlayer(packName) {
-      if (!currentSelectedPlayerForPack) return;
-      const packRef = database.ref(`questionBanks/${packName}`);
-      packRef.once('value').then(snapshot => {
-        const data = snapshot.val();
-        const questions = data && data.content ? parseQuestionsFromText(data.content) : [];
-        if (questions.length === 0) {
-          alert('Пак пуст!');
-          return;
-        }
-        database.ref('lobby').update({
-          selectedPlayer: currentSelectedPlayerForPack,
-          currentPack: packName,
-          questions: questions
-        });
-        closePackSelector();
+    function startGame() {
+      if (!selectedPlayer) return alert('Выберите игрока!');
+      database.ref('lobby').update({
+        gameStarted: true,
+        currentQuestionIndex: 0,
+        currentAnswer: null,
+        helpUsed: { 50: false, audience: false, second: false }
       });
-    }
-
-    function closePackSelector() {
-      document.getElementById('packSelectorModal').style.display = 'none';
-      currentSelectedPlayerForPack = null;
-    }
-
-    function loadPackListForSelector() {
-      const packRef = database.ref('questionBanks');
-      packRef.once('value').then(snapshot => {
-        const packs = snapshot.val() || {};
-        const list = document.getElementById('packList');
-        list.innerHTML = '';
-        Object.keys(packs).forEach(name => {
-          const div = document.createElement('div');
-          div.className = 'pack-item';
-          div.textContent = name;
-          div.onclick = () => assignPackToPlayer(name);
-          list.appendChild(div);
-        });
-      });
-    }
-
-    function showHostLobby() {
-      document.getElementById('bankEditorScreen').classList.remove('active');
-      document.getElementById('hostLobbyScreen').classList.add('active');
-    }
-
-    function showBankEditor() {
-      document.getElementById('hostLobbyScreen').classList.remove('active');
-      document.getElementById('bankEditorScreen').classList.add('active');
-      loadPackSelector();
-    }
-
-    function loadPackSelector() {
-      const select = document.getElementById('packSelector');
-      select.innerHTML = '<option value="">— Выберите пак —</option>';
-      const packsRef = database.ref('questionBanks');
-      packsRef.once('value').then(snapshot => {
-        const packs = snapshot.val() || {};
-        Object.keys(packs).forEach(name => {
-          const opt = document.createElement('option');
-          opt.value = name;
-          opt.textContent = name;
-          select.appendChild(opt);
-        });
-      });
-    }
-
-    function createNewPack() {
-      const name = document.getElementById('newPackName').value.trim();
-      if (!name) return alert('Введите название пака!');
-      const packRef = database.ref(`questionBanks/${name}`);
-      packRef.set({ content: "" }, () => {
-        alert(`Пак "${name}" создан!`);
-        document.getElementById('newPackName').value = '';
-        loadPackSelector();
-      });
-    }
-
-    function loadPackContent(packName) {
-      if (!packName) {
-        document.getElementById('packContent').value = '';
-        return;
-      }
-      const packRef = database.ref(`questionBanks/${packName}`);
-      packRef.once('value').then(snapshot => {
-        const data = snapshot.val();
-        document.getElementById('packContent').value = (data && data.content) || '';
-      });
-    }
-
-    function addQuestionsToSelectedPack() {
-      const packName = document.getElementById('packSelector').value;
-      if (!packName) return alert('Сначала выберите пак!');
-      const text = document.getElementById('questionsText').value.trim();
-      if (!text) return alert('Введите вопросы!');
-
-      const packRef = database.ref(`questionBanks/${packName}`);
-      packRef.once('value').then(snapshot => {
-        const data = snapshot.val() || { content: "" };
-        const updatedContent = data.content + "\n\n" + text;
-        packRef.update({ content: updatedContent }, () => {
-          alert(`Текст добавлен в пак "${packName}"`);
-          document.getElementById('questionsText').value = '';
-          loadPackContent(packName);
-        });
-      });
-    }
-
-    function savePackContent() {
-      const packName = document.getElementById('packSelector').value;
-      if (!packName) return alert('Сначала выберите пак!');
-      const content = document.getElementById('packContent').value.trim();
-      if (!content) return alert('Введите содержимое пака!');
-
-      const packRef = database.ref(`questionBanks/${packName}`);
-      packRef.update({ content: content }, () => {
-        alert(`Пак "${packName}" сохранён!`);
-      });
-    }
-
-    function parseQuestionsFromText(text) {
-      const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-      const qs = [];
-      let current = null;
-
-      for (const line of lines) {
-        if (/^\d+\.\s/.test(line)) {
-          if (current) qs.push(current);
-          const qText = line.replace(/^\d+\.\s*/, '').trim();
-          current = { question: qText, options: [], correct: -1 };
-        } else if (/^[А-Г]\)/.test(line)) {
-          if (!current) continue;
-          let opt = line.substring(2).trim();
-          let isCorrect = false;
-          if (opt.endsWith('+')) {
-            isCorrect = true;
-            opt = opt.slice(0, -1).trim();
-          }
-          current.options.push(opt);
-          if (isCorrect) current.correct = current.options.length - 1;
-        }
-      }
-      if (current && current.options.length === 4 && current.correct !== -1) {
-        qs.push(current);
-      }
-      return qs;
     }
 
     function showGameScreen() {
@@ -736,17 +612,12 @@
       document.getElementById('hostLobbyScreen').classList.remove('active');
       document.getElementById('gameScreen').classList.add('active');
       document.getElementById('questionsContainer').style.display = 'block';
-      if (currentRole === 'host') {
-        document.getElementById('hostControls').style.display = 'block';
-      } else {
-        document.getElementById('hostControls').style.display = 'none';
-      }
       loadQuestion(currentQuestionIndex);
     }
 
     function loadQuestion(index) {
       if (index >= currentGameQuestions.length) {
-        alert('Победа!');
+        alert('Поздравляем! Вы выиграли!');
         database.ref('lobby').update({ gameStarted: false, selectedPlayer: null });
         return;
       }
@@ -762,12 +633,7 @@
         btn.textContent = opt;
 
         if (currentRole === 'player' && currentUser === selectedPlayer) {
-          btn.onclick = () => {
-            document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
-            btn.classList.add('selected');
-            currentAnswer = i;
-            database.ref('lobby').update({ currentAnswer: i });
-          };
+          btn.onclick = () => selectAnswer(i);
         } else {
           btn.disabled = true;
           btn.style.cursor = 'default';
@@ -779,62 +645,21 @@
         document.getElementById(`q${i}`).classList.toggle('current', i - 1 === index);
       }
 
+      // Восстановить состояние подсказок
       resetHelpButtons();
     }
 
-    function revealAnswer() {
-      if (currentRole !== 'host') return;
-      const q = currentGameQuestions[currentQuestionIndex];
-      const btns = document.querySelectorAll('.option-btn');
-      const isCorrect = currentAnswer === q.correct;
-
-      btns[q.correct].classList.add('correct');
-      if (currentAnswer != null && currentAnswer !== q.correct) {
-        btns[currentAnswer].classList.add('incorrect');
-      }
-
-      setTimeout(() => {
-        if (isCorrect) {
-          if (currentQuestionIndex + 1 >= currentGameQuestions.length) {
-            alert('Победа!');
-            database.ref('lobby').update({ gameStarted: false, selectedPlayer: null });
-          } else {
-            database.ref('lobby').update({
-              currentQuestionIndex: currentQuestionIndex + 1,
-              currentAnswer: null,
-              helpUsed: { 50: false, audience: false, second: false }
-            });
-          }
-        } else {
-          if (helpUsed.second) {
-            helpUsed.second = false;
-            document.querySelectorAll('.option-btn').forEach(b => {
-              b.className = 'option-btn';
-            });
-            database.ref('lobby').update({
-              helpUsed: { 50: false, audience: false, second: false },
-              currentAnswer: null
-            });
-            alert('Использован второй шанс!');
-          } else {
-            document.getElementById('gameScreen').classList.remove('active');
-            document.getElementById('defeatScreen').classList.add('active');
-            database.ref('lobby').update({ gameStarted: false, selectedPlayer: null });
-          }
-        }
-      }, 1500);
-    }
-
-    function showCorrectAnswer() {
-      if (currentRole !== 'host') return;
-      const q = currentGameQuestions[currentQuestionIndex];
-      const btns = document.querySelectorAll('.option-btn');
-      btns.forEach(b => b.classList.remove('correct', 'incorrect'));
-      btns[q.correct].classList.add('correct');
+    function selectAnswer(i) {
+      currentAnswer = i;
+      database.ref('lobby').update({ currentAnswer: i });
+      // Подсветить локально
+      document.querySelectorAll('.option-btn').forEach((b, idx) => {
+        b.classList.toggle('selected', idx === i);
+      });
     }
 
     function useHelp50() {
-      if (helpUsed['50'] || currentRole !== 'player' || currentUser !== selectedPlayer) return;
+      if (helpUsed['50'] || !(currentRole === 'player' && currentUser === selectedPlayer)) return;
       helpUsed['50'] = true;
       document.getElementById('help50').classList.add('used');
       database.ref('lobby').update({ helpUsed });
@@ -848,15 +673,15 @@
     }
 
     function useHelpAudience() {
-      if (helpUsed['audience'] || currentRole !== 'player' || currentUser !== selectedPlayer) return;
+      if (helpUsed['audience'] || !(currentRole === 'player' && currentUser === selectedPlayer)) return;
       helpUsed['audience'] = true;
       document.getElementById('helpAudience').classList.add('used');
       database.ref('lobby').update({ helpUsed });
-      alert('Помощь зала: голосование не реализовано');
+      showAudiencePoll();
     }
 
     function useHelpSecond() {
-      if (helpUsed['second'] || currentRole !== 'player' || currentUser !== selectedPlayer) return;
+      if (helpUsed['second'] || !(currentRole === 'player' && currentUser === selectedPlayer)) return;
       helpUsed['second'] = true;
       document.getElementById('helpSecond').classList.add('used');
       database.ref('lobby').update({ helpUsed });
@@ -864,12 +689,32 @@
     }
 
     function resetHelpButtons() {
-      document.getElementById('help50').classList.remove('used');
-      document.getElementById('helpAudience').classList.remove('used');
-      document.getElementById('helpSecond').classList.remove('used');
-      if (helpUsed['50']) document.getElementById('help50').classList.add('used');
-      if (helpUsed['audience']) document.getElementById('helpAudience').classList.add('used');
-      if (helpUsed['second']) document.getElementById('helpSecond').classList.add('used');
+      document.getElementById('help50').classList.toggle('used', helpUsed['50']);
+      document.getElementById('helpAudience').classList.toggle('used', helpUsed['audience']);
+      document.getElementById('helpSecond').classList.toggle('used', helpUsed['second']);
+    }
+
+    function showAudiencePoll() {
+      const q = currentGameQuestions[currentQuestionIndex];
+      const cont = document.getElementById('pollOptions');
+      cont.innerHTML = q.options.map((opt,i) => 
+        `<div class="poll-option" onclick="closePoll()">${opt}</div>`
+      ).join('');
+      document.getElementById('audiencePoll').style.display = 'flex';
+      document.body.style.overflow = 'hidden';
+
+      let t = 60;
+      const timer = setInterval(() => {
+        document.getElementById('pollTimer').textContent = --t;
+        if (t <= 0) closePoll();
+      }, 1000);
+      window.pollTimer = timer;
+    }
+
+    function closePoll() {
+      clearInterval(window.pollTimer);
+      document.getElementById('audiencePoll').style.display = 'none';
+      document.body.style.overflow = 'auto';
     }
 
     function returnToLobby() {
@@ -878,23 +723,84 @@
       document.getElementById('questionsContainer').style.display = 'none';
     }
 
-    function startGame() {
-      if (!selectedPlayer) {
-        alert('Выберите игрока!');
-        return;
-      }
-      if (!currentGameQuestions || currentGameQuestions.length === 0) {
-        alert('Нет вопросов! Добавьте пак или вопросы.');
-        return;
-      }
-      database.ref('lobby').update({
-        gameStarted: true,
-        selectedPlayer: selectedPlayer,
-        currentQuestionIndex: 0,
-        currentAnswer: null,
-        helpUsed: { 50: false, audience: false, second: false }
-      });
+    function showEditor() {
+      document.getElementById('hostLobbyScreen').classList.remove('active');
+      document.getElementById('editorScreen').classList.add('active');
+      renderQuestionsEditor();
     }
+
+    function showHostLobby() {
+      document.getElementById('editorScreen').classList.remove('active');
+      document.getElementById('hostLobbyScreen').classList.add('active');
+    }
+
+    function renderQuestionsEditor() {
+      const cont = document.getElementById('questionsEditor');
+      cont.innerHTML = currentGameQuestions.map((q,i) => `
+        <div class="question-editor">
+          <input type="text" value="${q.question}" onchange="updateField(${i}, 'question', this.value)">
+          <input type="text" value="${q.options[0]}" onchange="updateField(${i}, 'option0', this.value)">
+          <input type="text" value="${q.options[1]}" onchange="updateField(${i}, 'option1', this.value)">
+          <input type="text" value="${q.options[2]}" onchange="updateField(${i}, 'option2', this.value)">
+          <input type="text" value="${q.options[3]}" onchange="updateField(${i}, 'option3', this.value)">
+          <select onchange="updateField(${i}, 'correct', this.value)">
+            <option value="0" ${q.correct==0?'selected':''}>1</option>
+            <option value="1" ${q.correct==1?'selected':''}>2</option>
+            <option value="2" ${q.correct==2?'selected':''}>3</option>
+            <option value="3" ${q.correct==3?'selected':''}>4</option>
+          </select>
+          <button class="btn" onclick="deleteQuestion(${i})">Удалить</button>
+        </div>
+      `).join('');
+      const btn = document.createElement('button');
+      btn.className = 'btn';
+      btn.textContent = 'Добавить вопрос';
+      btn.onclick = () => {
+        database.ref('lobby/questions').push({
+          question: 'Новый вопрос',
+          options: ['Вариант 1','Вариант 2','Вариант 3','Вариант 4'],
+          correct: 0
+        });
+      };
+      cont.appendChild(btn);
+    }
+
+    function updateField(i, field, value) {
+      const ref = database.ref(`lobby/questions/${i}`);
+      if (field === 'question') ref.update({ question: value });
+      else if (field.startsWith('option')) ref.child('options').child(field[6]).set(value);
+      else if (field === 'correct') ref.update({ correct: parseInt(value) });
+    }
+
+    function deleteQuestion(i) {
+      database.ref(`lobby/questions/${i}`).remove();
+    }
+
+    function addQuestionsFromText() {
+      const text = document.getElementById('questionsText').value;
+      if (!text.trim()) return;
+      const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+      const qs = [];
+      let q = null, opts = [], correct = -1;
+      for (let line of lines) {
+        if (line.endsWith('?')) {
+          if (q) qs.push({ question: q, options: [...opts], correct });
+          q = line.slice(0, -1); opts = []; correct = -1;
+        } else if (/^[1-4]\)/.test(line)) {
+          let opt = line.substring(3).trim();
+          if (opt.endsWith('+')) { correct = opts.length; opt = opt.slice(0, -1); }
+          opts.push(opt);
+        }
+      }
+      if (q) qs.push({ question: q, options: [...opts], correct });
+      database.ref('lobby/questions').transaction(arr => {
+        return arr ? [...arr, ...qs] : qs;
+      });
+      alert(`Добавлено ${qs.length} вопросов!`);
+      document.getElementById('questionsText').value = '';
+    }
+
+    function saveQuestions() { alert('Сохранено!'); }
 
     function logout() {
       if (currentRole === 'player') removePlayerFromFirebase();
